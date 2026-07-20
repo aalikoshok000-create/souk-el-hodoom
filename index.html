@@ -643,6 +643,7 @@ async function submitRestock(e){
     return false;
   }
   const secret = verifiedAdminSecret;
+  const productId = document.getElementById('restockProduct').value;
   const sizeWrap = document.getElementById('restockSizeWrap');
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('restockSize').value : null;
   const qty = parseInt(document.getElementById('restockQty').value);
