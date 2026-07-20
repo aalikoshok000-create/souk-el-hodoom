@@ -140,6 +140,11 @@
   .qty-controls button{ background:var(--bg); border:1px solid var(--line); width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:0.9rem; }
   .drawer-foot{ padding:18px 22px 22px; border-top:1px solid var(--line); }
   .drawer-total{ display:flex; justify-content:space-between; font-family:'Almarai'; font-weight:800; font-size:1.08rem; margin-bottom:14px; }
+  .shipping-msg{ font-size:0.8rem; font-weight:700; margin-bottom:6px; }
+  .shipping-msg.done{ color:var(--green); }
+  .shipping-msg.pending{ color:var(--ink-soft); }
+  .shipping-bar{ height:6px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .shipping-bar-fill{ height:100%; background:var(--green); transition:width 0.3s ease; }
   .checkout-btn{ width:100%; background:var(--red); color:#fff; border:none; padding:14px; border-radius:8px; font-weight:800; font-size:0.93rem; cursor:pointer; }
   .checkout-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 
@@ -191,6 +196,17 @@
   .toast{ position:fixed; bottom:24px; right:24px; background:var(--ink); color:#fff; padding:14px 22px; border-radius:8px; font-size:0.88rem; font-weight:700; z-index:110; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
   .toast.show{ opacity:1; transform:translateY(0); }
 
+  /* product detail modal */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:130; padding:20px; }
+  .modal-backdrop.open{ display:flex; }
+  .modal-box{ background:var(--card); border-radius:16px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; position:relative; padding:0; }
+  .modal-close{ position:absolute; top:14px; left:14px; background:rgba(255,255,255,0.9); border:none; width:32px; height:32px; border-radius:50%; font-size:1.1rem; cursor:pointer; color:var(--ink); z-index:2; }
+  .modal-media{ width:100%; height:320px; background:linear-gradient(135deg, #F3EFE6, #E9E3D5); display:flex; align-items:center; justify-content:center; font-size:4rem; color:rgba(35,36,31,0.14); overflow:hidden; border-radius:16px 16px 0 0; }
+  .modal-media img{ width:100%; height:100%; object-fit:cover; }
+  .modal-body{ padding:24px 26px 28px; }
+  .modal-desc{ color:var(--ink-soft); line-height:1.9; font-size:0.9rem; margin:10px 0 16px; }
+  @media (max-width:600px){ .modal-media{ height:220px; } }
+
   @media (max-width:760px){ nav{ display:none; } .about{ padding:26px; } .field-row{ flex-direction:column; } }
   :focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
 </style>
@@ -233,10 +249,10 @@
     <div class="brand-strip" id="heroBrandStrip"></div>
   </div>
   <div class="price-compare">
-    <div class="sticker">خصم<br>٣٠٪</div>
-    <div class="was">بدل ٤٥٠ ج.م</div>
-    <div class="now">٣١٥ ج.م</div>
-    <div class="note">على قطع مختارة من كذا ماركة النهاردة بس</div>
+    <div class="sticker" id="heroDealSticker">خصم<br>٣٠٪</div>
+    <div class="was" id="heroDealWas">بدل ٤٥٠ ج.م</div>
+    <div class="now" id="heroDealNow">٣١٥ ج.م</div>
+    <div class="note" id="heroDealNote">على قطع مختارة من كذا ماركة النهاردة بس</div>
   </div>
 </section>
 
@@ -349,6 +365,7 @@
     </form>
   </div>
   <div class="drawer-foot" id="drawerFoot">
+    <div id="shippingProgress" style="margin-bottom:12px;"></div>
     <div class="drawer-total"><span>الإجمالي</span><span id="drawerTotal">٠ ج.م</span></div>
     <button class="checkout-btn" id="checkoutBtn" disabled onclick="showCheckoutForm()">متابعة الطلب</button>
   </div>
@@ -423,9 +440,13 @@
           <label>نص شارة البانر الرئيسي</label>
           <input type="text" id="setHeroBadge" placeholder="ماركات مصرية مختلفة تحت سقف واحد">
         </div>
-        <div class="field" style="margin-bottom:18px;">
+        <div class="field" style="margin-bottom:14px;">
           <label>نص الفوتر التعريفي</label>
           <input type="text" id="setFooterAbout" placeholder="ماركات كتير، سعر واحد يريحك.">
+        </div>
+        <div class="field" style="margin-bottom:18px;">
+          <label>حد التوصيل المجاني (بالجنيه)</label>
+          <input type="number" id="setFreeShipping" min="0" placeholder="1000">
         </div>
         <button type="submit" class="checkout-btn" id="adminSaveBtn">حفظ الإعدادات</button>
       </form>
@@ -464,6 +485,14 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-backdrop" id="productModalBackdrop" onclick="if(event.target===this) closeProductModal();">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeProductModal()">✕</button>
+    <div id="productModalContent"></div>
+  </div>
+</div>
 
 <script>
 /* ====== إعدادات الربط بالباك إند المجاني (Google Apps Script) ======
@@ -524,7 +553,8 @@ let siteSettings = {
   facebook_url: '',
   instagram_url: '',
   hero_badge_text: 'ماركات مصرية مختلفة تحت سقف واحد',
-  footer_about_text: 'ماركات كتير، سعر واحد يريحك.'
+  footer_about_text: 'ماركات كتير، سعر واحد يريحك.',
+  free_shipping_threshold: '1000'
 };
 
 async function loadSettings(){
@@ -607,6 +637,7 @@ function unlockAdminContent(){
   document.getElementById('setInstagram').value = siteSettings.instagram_url || '';
   document.getElementById('setHeroBadge').value = siteSettings.hero_badge_text || '';
   document.getElementById('setFooterAbout').value = siteSettings.footer_about_text || '';
+  document.getElementById('setFreeShipping').value = siteSettings.free_shipping_threshold || '';
 
   const restockSelect = document.getElementById('restockProduct');
   restockSelect.innerHTML = products.map(p =>
@@ -754,7 +785,8 @@ async function saveSettings(e){
     facebook_url: document.getElementById('setFacebook').value.trim(),
     instagram_url: document.getElementById('setInstagram').value.trim(),
     hero_badge_text: document.getElementById('setHeroBadge').value.trim() || siteSettings.hero_badge_text,
-    footer_about_text: document.getElementById('setFooterAbout').value.trim() || siteSettings.footer_about_text
+    footer_about_text: document.getElementById('setFooterAbout').value.trim() || siteSettings.footer_about_text,
+    free_shipping_threshold: document.getElementById('setFreeShipping').value.trim() || siteSettings.free_shipping_threshold
   };
 
   const btn = document.getElementById('adminSaveBtn');
@@ -797,6 +829,20 @@ function renderFilters(){
   const uniqueBrands = [...new Set(products.map(p => p.brand))];
   document.getElementById('heroBrandStrip').innerHTML = uniqueBrands
     .map(b => `<span class="brand-pill">${b}</span>`).join('');
+
+  if(products.length > 0){
+    const bestDeal = products.reduce((best, p) => {
+      const pct = discountPct(p.was, p.price);
+      return pct > best.pct ? { pct, product: p } : best;
+    }, { pct: -1, product: null });
+
+    if(bestDeal.product){
+      document.getElementById('heroDealSticker').innerHTML = `خصم<br>${bestDeal.pct}٪`;
+      document.getElementById('heroDealWas').textContent = `بدل ${fmt(bestDeal.product.was)}`;
+      document.getElementById('heroDealNow').textContent = fmt(bestDeal.product.price);
+      document.getElementById('heroDealNote').textContent = `على ${bestDeal.product.brand} / ${bestDeal.product.name} النهاردة بس`;
+    }
+  }
 
   const cats = ['all', ...new Set(products.map(p => p.category))];
   const catNames = {all:'الكل'};
@@ -876,11 +922,11 @@ function renderProducts(){
 
       card.innerHTML = `
         <div class="discount-sticker">خصم ${pct}٪</div>
-        <div class="card-media">${mediaContent}</div>
+        <div class="card-media" onclick="openProductModal(${p.id})" style="cursor:pointer;">${mediaContent}</div>
         <div class="card-body">
           <div class="card-brand">${p.brand}</div>
           <div class="card-cat">${p.cat}</div>
-          <div class="card-name">${p.name}</div>
+          <div class="card-name" onclick="openProductModal(${p.id})" style="cursor:pointer;">${p.name}</div>
           ${stockLabel}
           ${sizeSelector}
           <div class="card-prices">
@@ -940,6 +986,132 @@ function renderProducts(){
       setTimeout(() => { renderProducts(); }, 900);
     });
   });
+}
+
+let currentModalProductId = null;
+
+function openProductModal(id){
+  currentModalProductId = id;
+  renderProductModal(id);
+  document.getElementById('productModalBackdrop').classList.add('open');
+}
+
+function closeProductModal(){
+  document.getElementById('productModalBackdrop').classList.remove('open');
+  currentModalProductId = null;
+}
+
+function renderProductModal(id){
+  const p = products.find(x => x.id == id);
+  if(!p) return;
+  const pct = discountPct(p.was, p.price);
+  const mediaContent = p.image
+    ? `<img src="${p.image}" alt="${p.name}" onerror="this.parentElement.innerHTML='👕';">`
+    : '👕';
+
+  const hasSizes = !!p.sizes;
+  let stock, remaining, outOfStock;
+
+  if(hasSizes){
+    const sizeKeys = Object.keys(p.sizes);
+    if(!selectedSize[p.id] || !(selectedSize[p.id] in p.sizes)){
+      const firstAvailable = sizeKeys.find(sz => p.sizes[sz] > 0);
+      selectedSize[p.id] = firstAvailable || sizeKeys[0];
+    }
+    const sz = selectedSize[p.id];
+    stock = p.sizes[sz];
+    const inCart = cart[cartKey(p.id, sz)]?.qty || 0;
+    remaining = Math.max(stock - inCart, 0);
+    outOfStock = stock <= 0;
+  } else {
+    stock = Number(p.stock);
+    const inCart = cart[cartKey(p.id, null)]?.qty || 0;
+    remaining = Math.max(stock - inCart, 0);
+    outOfStock = !isNaN(stock) && stock <= 0;
+  }
+
+  const reachedLimit = remaining <= 0;
+  const qtyKey = hasSizes ? `${p.id}_${selectedSize[p.id]}` : String(p.id);
+  if(!cardQty[qtyKey] || cardQty[qtyKey] < 1) cardQty[qtyKey] = 1;
+  if(cardQty[qtyKey] > remaining) cardQty[qtyKey] = Math.max(remaining, 1);
+  const qty = cardQty[qtyKey];
+
+  let stockLabel = '<div class="card-cod">💵 الدفع عند الاستلام</div>';
+  if(outOfStock){
+    stockLabel = '<div class="card-cod" style="color:var(--red);">⛔ نفذت الكمية</div>';
+  } else if(stock <= 3){
+    stockLabel = `<div class="card-cod" style="color:var(--yellow-deep);">⚠️ متبقي ${stock} بس</div>`;
+  }
+
+  const btnDisabled = reachedLimit;
+  const btnLabel = outOfStock ? 'نفذت الكمية' : (reachedLimit ? 'وصلت للحد المتاح' : 'أضف للسلة');
+
+  const sizeSelector = hasSizes ? `
+    <div class="size-selector">
+      ${Object.keys(p.sizes).map(sz => `
+        <button type="button" class="size-btn ${selectedSize[p.id]===sz ? 'active':''}"
+          onclick="selectModalSize(${p.id}, '${sz}')" ${p.sizes[sz] <= 0 ? 'disabled' : ''}>${sz}</button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  document.getElementById('productModalContent').innerHTML = `
+    <div class="modal-media">${mediaContent}</div>
+    <div class="modal-body">
+      <div class="discount-sticker" style="position:static; display:inline-block; margin-bottom:10px;">خصم ${pct}٪</div>
+      <div class="card-brand">${p.brand}</div>
+      <div class="card-cat">${p.cat}</div>
+      <h2 style="font-family:'Almarai'; font-size:1.3rem; margin:6px 0;">${p.name}</h2>
+      <div class="modal-desc">${p.desc || ''}</div>
+      ${stockLabel}
+      ${sizeSelector}
+      <div class="card-prices" style="margin:14px 0;">
+        <span class="card-was">${fmt(p.was)}</span>
+        <span class="card-now" style="font-size:1.4rem;">${fmt(p.price)}</span>
+      </div>
+      ${!btnDisabled ? `
+        <div class="qty-controls" style="margin-bottom:14px;">
+          <button type="button" onclick="changeModalQty(-1)">−</button>
+          <span>${qty}</span>
+          <button type="button" onclick="changeModalQty(1)">+</button>
+        </div>
+      ` : ''}
+      <button class="add-btn" style="padding:14px;" ${btnDisabled ? 'disabled' : ''} onclick="addFromModal()">${btnLabel}</button>
+    </div>
+  `;
+}
+
+function selectModalSize(id, sz){
+  selectedSize[id] = sz;
+  renderProductModal(id);
+  renderProducts();
+}
+
+function changeModalQty(delta){
+  const id = currentModalProductId;
+  const p = products.find(x => x.id == id);
+  const sz = p.sizes ? selectedSize[id] : null;
+  const stock = p.sizes ? p.sizes[sz] : Number(p.stock);
+  const inCart = cart[cartKey(id, sz)]?.qty || 0;
+  const remaining = !isNaN(stock) ? Math.max(stock - inCart, 1) : 99;
+  const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
+  let next = (cardQty[qtyKey] || 1) + delta;
+  if(next < 1) next = 1;
+  if(next > remaining) next = remaining;
+  cardQty[qtyKey] = next;
+  renderProductModal(id);
+}
+
+function addFromModal(){
+  const id = currentModalProductId;
+  const p = products.find(x => x.id == id);
+  const sz = p.sizes ? selectedSize[id] : null;
+  const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
+  addToCart(id, sz, cardQty[qtyKey] || 1);
+  cardQty[qtyKey] = 1;
+  showToast('اتضافت للسلة');
+  renderProductModal(id);
+  renderProducts();
 }
 
 function addToCart(id, size, qty){
@@ -1012,6 +1184,24 @@ function updateCartUI(){
     document.getElementById('checkoutBtn').disabled = false;
   }
   document.getElementById('drawerTotal').textContent = fmt(cartTotal());
+
+  const threshold = Number(siteSettings.free_shipping_threshold) || 0;
+  const progressEl = document.getElementById('shippingProgress');
+  if(threshold > 0 && keys.length > 0){
+    const total = cartTotal();
+    if(total >= threshold){
+      progressEl.innerHTML = `<div class="shipping-msg done">🎉 مبروك! طلبك مؤهل للتوصيل المجاني</div>`;
+    } else {
+      const remaining = threshold - total;
+      const pct = Math.min(100, Math.round((total / threshold) * 100));
+      progressEl.innerHTML = `
+        <div class="shipping-msg pending">أضف ${fmt(remaining)} كمان واحصل على توصيل مجاني!</div>
+        <div class="shipping-bar"><div class="shipping-bar-fill" style="width:${pct}%;"></div></div>
+      `;
+    }
+  } else {
+    progressEl.innerHTML = '';
+  }
 }
 
 function toggleDrawer(open){
