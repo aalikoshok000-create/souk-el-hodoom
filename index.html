@@ -502,21 +502,25 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwfldnJICp5sEo5BbOvv
 const WEBAPP_SECRET = 'koshok99AHMED'; // لازم تطابق نفس القيمة في السكريبت بالظبط
 const BACKEND_ENABLED = WEBAPP_URL.trim().length > 0;
 
-const governorates = [
-  'القاهرة','الجيزة','الإسكندرية','الدقهلية','البحر الأحمر','البحيرة','الفيوم','الغربية',
-  'الإسماعيلية','المنوفية','المنيا','القليوبية','الوادي الجديد','السويس','أسوان','أسيوط',
-  'بني سويف','بورسعيد','دمياط','الشرقية','جنوب سيناء','كفر الشيخ','مطروح','الأقصر',
-  'قنا','شمال سيناء','سوهاج'
+// قائمة احتياطية بتتستخدم بس لو تبويب Governorates لسه مش متظبط أو الاتصال فشل
+const fallbackGovernorates = [
+  { governorate: 'الجيزة', areas: ['الدقي','المهندسين','فيصل','٦ أكتوبر','الشيخ زايد','الهرم'] }
 ];
-
-const areasByGov = {
-  'القاهرة': ['مدينة نصر','مصر الجديدة','المعادي','حلوان','الزمالك','المقطم','التجمع الخامس'],
-  'الجيزة': ['الدقي','المهندسين','فيصل','٦ أكتوبر','الشيخ زايد','الهرم'],
-  'الإسكندرية': ['سموحة','ميامي','محرم بك','سيدي جابر','العجمي'],
-  'القليوبية': ['بنها','شبرا الخيمة','القناطر الخيرية'],
-  'الشرقية': ['الزقازيق','العاشر من رمضان','بلبيس']
-};
+let governoratesList = [...fallbackGovernorates];
 const defaultAreas = ['وسط المدينة','الحي الأول','الحي الثاني'];
+
+async function loadGovernorates(){
+  if(!BACKEND_ENABLED) return;
+  try{
+    const res = await fetch(`${WEBAPP_URL}?type=governorates`);
+    const json = await res.json();
+    if(json.success && Array.isArray(json.governorates) && json.governorates.length > 0){
+      governoratesList = json.governorates;
+    }
+  }catch(err){
+    // فشل الاتصال - هنكمل بالقائمة الاحتياطية (الجيزة بس)
+  }
+}
 
 // قائمة احتياطية بتتستخدم بس لو الاتصال بالشيت فشل أو لسه مش متظبط
 const fallbackProducts = [
@@ -1285,11 +1289,13 @@ function showCheckoutForm(){
 
 function populateGovernorates(){
   const sel = document.getElementById('custGov');
-  sel.innerHTML = '<option value="">اختار المحافظة</option>' + governorates.map(g => `<option value="${g}">${g}</option>`).join('');
+  sel.innerHTML = '<option value="">اختار المحافظة</option>' +
+    governoratesList.map(g => `<option value="${g.governorate}">${g.governorate}</option>`).join('');
 }
 function populateAreas(){
   const gov = document.getElementById('custGov').value;
-  const list = areasByGov[gov] || defaultAreas;
+  const entry = governoratesList.find(g => g.governorate === gov);
+  const list = (entry && entry.areas.length > 0) ? entry.areas : defaultAreas;
   document.getElementById('areaList').innerHTML = list.map(a => `<option value="${a}">`).join('');
 }
 
@@ -1485,9 +1491,9 @@ function toggleGovArea(idx){
 }
 
 async function init(){
+  await Promise.all([loadProducts(), loadSettings(), loadGovernorates()]);
   populateGovernorates();
   populateAreas();
-  await Promise.all([loadProducts(), loadSettings()]);
   renderFilters();
   renderProducts();
   updateCartUI();
