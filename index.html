@@ -519,6 +519,10 @@
           <label>الكمية الواردة</label>
           <input type="number" id="stockInQty" min="1" value="1" required>
         </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>سعر تكلفة الوحدة (بالجنيه)</label>
+          <input type="number" id="stockInUnitCost" min="0" step="0.01" placeholder="سعر الشراء من المورد">
+        </div>
         <div class="field" style="margin-bottom:18px;">
           <label>ملاحظة (رقم فاتورة المورد مثلاً)</label>
           <input type="text" id="stockInNote" placeholder="مثال: فاتورة مورد رقم 123">
@@ -754,6 +758,7 @@ async function submitStockIn(e){
   const sizeWrap = document.getElementById('stockInSizeWrap');
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('stockInSize').value : null;
   const qty = parseInt(document.getElementById('stockInQty').value);
+  const unitCost = parseFloat(document.getElementById('stockInUnitCost').value) || 0;
   const note = document.getElementById('stockInNote').value.trim();
 
   const btn = document.getElementById('stockInSaveBtn');
@@ -764,7 +769,7 @@ async function submitStockIn(e){
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret, type: 'add_stock_in', productId, size, qty, note })
+      body: JSON.stringify({ secret, type: 'add_stock_in', productId, size, qty, unitCost, note })
     });
     const json = await res.json();
     if(json.success){
@@ -1572,7 +1577,7 @@ async function submitOrder(e){
   const subtotal = cartTotal();
   const { shipping: shippingCost, otherFees } = getShippingCost(gov, area, subtotal);
   const total = subtotal + shippingCost + otherFees;
-  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, total };
+  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, subtotal, shipping: shippingCost, otherFees, total };
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
