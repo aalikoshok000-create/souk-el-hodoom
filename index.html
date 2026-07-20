@@ -339,12 +339,25 @@
       <div class="field-row">
         <div class="field">
           <label>المحافظة</label>
-          <select id="custGov" required onchange="populateAreas()"></select>
+          <select id="custGov" required onchange="populateAreas(); updateOrderSummary();"></select>
         </div>
         <div class="field">
           <label>المدينة / الحي</label>
-          <input type="text" id="custArea" list="areaList" required placeholder="اكتب أو اختار">
-          <datalist id="areaList"></datalist>
+          <select id="custArea" required onchange="updateOrderSummary();"></select>
+        </div>
+      </div>
+      <div class="field" id="orderSummaryBox" style="background:var(--bg); border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>المنتجات</span><span id="summarySubtotal">٠ ج.م</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>الشحن</span><span id="summaryShipping">اختار المحافظة الأول</span>
+        </div>
+        <div id="summaryOtherFees" style="display:none; justify-content:space-between; margin-bottom:4px;">
+          <span>مصاريف أخرى</span><span id="summaryOtherFeesValue">٠ ج.م</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-weight:800; border-top:1px dashed var(--line); margin-top:6px; padding-top:6px;">
+          <span>الإجمالي</span><span id="summaryTotal">٠ ج.م</span>
         </div>
       </div>
       <div class="field">
@@ -489,6 +502,30 @@
 
       <div class="stitch" style="margin:26px 0;"></div>
 
+      <h3 style="font-size:1rem; margin-bottom:12px;">📥 تسجيل بضاعة واردة (شراء جديد)</h3>
+      <div class="reports-note">
+        كل مرة تشتري بضاعة جديدة، سجّلها هنا. الكمية دي بتتضاف كحركة "وارد" منفصلة في كارت الصنف، مش تعديل على رقم موجود.
+      </div>
+      <form id="stockInForm" onsubmit="return submitStockIn(event)">
+        <div class="field" style="margin-bottom:14px;">
+          <label>المنتج</label>
+          <select id="stockInProduct" required onchange="onStockInProductChange()"></select>
+        </div>
+        <div class="field" style="margin-bottom:14px; display:none;" id="stockInSizeWrap">
+          <label>المقاس</label>
+          <select id="stockInSize"></select>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>الكمية الواردة</label>
+          <input type="number" id="stockInQty" min="1" value="1" required>
+        </div>
+        <div class="field" style="margin-bottom:18px;">
+          <label>ملاحظة (رقم فاتورة المورد مثلاً)</label>
+          <input type="text" id="stockInNote" placeholder="مثال: فاتورة مورد رقم 123">
+        </div>
+        <button type="submit" class="checkout-btn" id="stockInSaveBtn" style="background:var(--green);">تسجيل الوارد</button>
+      </form>
+
       <div class="stitch" style="margin:26px 0;"></div>
 
       <h3 style="font-size:1rem; margin-bottom:12px;">🔄 إدارة طلبات المرتجعات</h3>
@@ -530,10 +567,26 @@ const BACKEND_ENABLED = WEBAPP_URL.trim().length > 0;
 
 // قائمة احتياطية بتتستخدم بس لو تبويب Governorates لسه مش متظبط أو الاتصال فشل
 const fallbackGovernorates = [
-  { governorate: 'الجيزة', areas: ['الدقي','المهندسين','فيصل','٦ أكتوبر','الشيخ زايد','الهرم'] }
+  { governorate: 'الجيزة', area: 'الدقي', shipping_cost: 50, other_fees: 0 },
+  { governorate: 'الجيزة', area: 'المهندسين', shipping_cost: 50, other_fees: 0 },
+  { governorate: 'الجيزة', area: '٦ أكتوبر', shipping_cost: 60, other_fees: 0 },
+  { governorate: 'الجيزة', area: 'الشيخ زايد', shipping_cost: 60, other_fees: 0 },
+  { governorate: 'الجيزة', area: 'الهرم', shipping_cost: 50, other_fees: 0 }
 ];
 let governoratesList = [...fallbackGovernorates];
-const defaultAreas = ['وسط المدينة','الحي الأول','الحي الثاني'];
+
+/**
+ * بيرجع {shipping, otherFees} للمحافظة والحي المحددين بالظبط.
+ * الشحن بيبقى مجاني لو الإجمالي وصل لحد التوصيل المجاني، لكن "المصاريف الأخرى" بتفضل ثابتة دايمًا.
+ */
+function getShippingCost(governorateName, areaName, subtotal){
+  const entry = governoratesList.find(g => g.governorate === governorateName && g.area === areaName);
+  const baseShipping = entry ? (Number(entry.shipping_cost) || 0) : 0;
+  const otherFees = entry ? (Number(entry.other_fees) || 0) : 0;
+  const threshold = Number(siteSettings.free_shipping_threshold) || 0;
+  const shipping = (threshold > 0 && subtotal >= threshold) ? 0 : baseShipping;
+  return { shipping, otherFees };
+}
 
 async function loadGovernorates(){
   if(!BACKEND_ENABLED) return;
@@ -668,6 +721,71 @@ function unlockAdminContent(){
   document.getElementById('setHeroBadge').value = siteSettings.hero_badge_text || '';
   document.getElementById('setFooterAbout').value = siteSettings.footer_about_text || '';
   document.getElementById('setFreeShipping').value = siteSettings.free_shipping_threshold || '';
+
+  const stockInSelect = document.getElementById('stockInProduct');
+  stockInSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.brand} / ${p.name}</option>`).join('');
+  onStockInProductChange();
+}
+
+function onStockInProductChange(){
+  const id = document.getElementById('stockInProduct').value;
+  const p = products.find(x => x.id == id);
+  const wrap = document.getElementById('stockInSizeWrap');
+  const sizeSelect = document.getElementById('stockInSize');
+  if(p && p.sizes){
+    wrap.style.display = 'block';
+    sizeSelect.innerHTML = Object.keys(p.sizes).map(sz =>
+      `<option value="${sz}">${sz} (المتاح حاليًا: ${p.sizes[sz]})</option>`
+    ).join('');
+  } else {
+    wrap.style.display = 'none';
+    sizeSelect.innerHTML = '';
+  }
+}
+
+async function submitStockIn(e){
+  e.preventDefault();
+  if(!BACKEND_ENABLED){
+    showToast('الباك إند لسه مش متظبط');
+    return false;
+  }
+  const secret = verifiedAdminSecret;
+  const productId = document.getElementById('stockInProduct').value;
+  const sizeWrap = document.getElementById('stockInSizeWrap');
+  const size = sizeWrap.style.display !== 'none' ? document.getElementById('stockInSize').value : null;
+  const qty = parseInt(document.getElementById('stockInQty').value);
+  const note = document.getElementById('stockInNote').value.trim();
+
+  const btn = document.getElementById('stockInSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'جاري التسجيل...';
+
+  try{
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret, type: 'add_stock_in', productId, size, qty, note })
+    });
+    const json = await res.json();
+    if(json.success){
+      showToast('اتسجلت البضاعة الواردة بنجاح');
+      document.getElementById('stockInForm').reset();
+      document.getElementById('stockInQty').value = 1;
+      await loadProducts();
+      renderFilters();
+      renderProducts();
+      updateCartUI();
+      onStockInProductChange();
+    } else {
+      showToast('كلمة السر غلط أو حصل خطأ');
+    }
+  }catch(err){
+    showToast('فشل الاتصال بالباك إند، جرب تاني');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'تسجيل الوارد';
+  return false;
 }
 
 function toggleReturnRequest(open){
@@ -1394,18 +1512,48 @@ function showCheckoutForm(){
   document.getElementById('checkoutForm').classList.add('active');
   document.getElementById('drawerFoot').style.display = 'none';
   document.getElementById('drawerTitle').textContent = 'بيانات التوصيل';
+  updateOrderSummary();
+}
+
+function updateOrderSummary(){
+  const subtotal = cartTotal();
+  const gov = document.getElementById('custGov').value;
+  const area = document.getElementById('custArea').value;
+  document.getElementById('summarySubtotal').textContent = fmt(subtotal);
+
+  if(!gov || !area){
+    document.getElementById('summaryShipping').textContent = 'اختار المحافظة والحي الأول';
+    document.getElementById('summaryOtherFees').style.display = 'none';
+    document.getElementById('summaryTotal').textContent = fmt(subtotal);
+    return;
+  }
+
+  const { shipping, otherFees } = getShippingCost(gov, area, subtotal);
+  document.getElementById('summaryShipping').textContent = shipping > 0 ? fmt(shipping) : 'مجاني 🎉';
+
+  const otherFeesRow = document.getElementById('summaryOtherFees');
+  if(otherFees > 0){
+    otherFeesRow.style.display = 'flex';
+    document.getElementById('summaryOtherFeesValue').textContent = fmt(otherFees);
+  } else {
+    otherFeesRow.style.display = 'none';
+  }
+
+  document.getElementById('summaryTotal').textContent = fmt(subtotal + shipping + otherFees);
 }
 
 function populateGovernorates(){
   const sel = document.getElementById('custGov');
+  const uniqueGovs = [...new Set(governoratesList.map(g => g.governorate))];
   sel.innerHTML = '<option value="">اختار المحافظة</option>' +
-    governoratesList.map(g => `<option value="${g.governorate}">${g.governorate}</option>`).join('');
+    uniqueGovs.map(g => `<option value="${g}">${g}</option>`).join('');
 }
 function populateAreas(){
   const gov = document.getElementById('custGov').value;
-  const entry = governoratesList.find(g => g.governorate === gov);
-  const list = (entry && entry.areas.length > 0) ? entry.areas : defaultAreas;
-  document.getElementById('areaList').innerHTML = list.map(a => `<option value="${a}">`).join('');
+  const matches = governoratesList.filter(g => g.governorate === gov);
+  const sel = document.getElementById('custArea');
+  sel.innerHTML = '<option value="">اختار الحي/المنطقة</option>' +
+    matches.map(g => `<option value="${g.area}">${g.area}</option>`).join('');
 }
 
 async function submitOrder(e){
@@ -1421,7 +1569,9 @@ async function submitOrder(e){
     const p = products.find(x => x.id == entry.id);
     return { id: p.id, name: p.name, brand: p.brand, size: entry.size || null, qty: entry.qty, price: p.price };
   });
-  const total = cartTotal();
+  const subtotal = cartTotal();
+  const { shipping: shippingCost, otherFees } = getShippingCost(gov, area, subtotal);
+  const total = subtotal + shippingCost + otherFees;
   const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, total };
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -1484,6 +1634,9 @@ async function submitOrder(e){
   msg += `طريقة الدفع: الدفع عند الاستلام%0A`;
   msg += 'الطلب:%0A';
   items.forEach(it => { msg += `- ${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}%0A`; });
+  msg += `المنتجات: ${subtotal} ج.م%0A`;
+  msg += `الشحن: ${shippingCost > 0 ? shippingCost + ' ج.م' : 'مجاني'}%0A`;
+  if(otherFees > 0){ msg += `مصاريف أخرى: ${otherFees} ج.م%0A`; }
   msg += `الإجمالي: ${total} ج.م`;
   window.open(`https://wa.me/${siteSettings.whatsapp_number}?text=${msg}`, '_blank');
 
