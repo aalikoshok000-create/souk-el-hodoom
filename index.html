@@ -235,7 +235,6 @@
     <a href="#contact">تواصل</a>
   </nav>
   <div class="header-actions">
-    <button class="icon-btn ghost" onclick="toggleReports(true)">📊 التقارير</button>
     <button class="icon-btn" onclick="toggleDrawer(true)">🛒 السلة <span class="cart-count" id="cartCount">0</span></button>
   </div>
 </header>
@@ -305,6 +304,7 @@
     <a href="#" id="footerFacebook">فيسبوك</a>
     <a href="#" id="footerInstagram">إنستجرام</a>
     <a href="javascript:void(0)" onclick="toggleTrack(true)">تتبع طلبك</a>
+    <a href="javascript:void(0)" onclick="toggleReturnRequest(true)">اطلب مرتجع</a>
   </div>
   <div class="f-col">
     <h3>معلومات</h3>
@@ -396,6 +396,42 @@
   </div>
 </div>
 
+<!-- CUSTOMER RETURN REQUEST PANEL -->
+<div class="reports-panel" id="returnRequestPanel">
+  <div class="reports-head">
+    <h3>🔄 اطلب مرتجع</h3>
+    <button class="close-btn" onclick="toggleReturnRequest(false)">✕</button>
+  </div>
+  <div class="reports-body">
+    <div class="reports-note">
+      اكتب رقم الأوردر اللي جالك في رسالة الواتساب، وهنراجع طلبك ونرد عليك في أقرب وقت.
+    </div>
+    <form id="returnRequestForm" onsubmit="return submitReturnRequest(event)">
+      <div class="field" style="margin-bottom:14px;">
+        <label>رقم الأوردر (OrderID)</label>
+        <input type="text" id="returnOrderId" required placeholder="مثال: ORD-1721234567890">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>المنتج اللي عايز ترجّعه</label>
+        <select id="returnProduct" required onchange="onReturnProductChange()"></select>
+      </div>
+      <div class="field" style="margin-bottom:14px; display:none;" id="returnSizeWrap">
+        <label>المقاس</label>
+        <select id="returnSize"></select>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>الكمية</label>
+        <input type="number" id="returnQty" min="1" value="1" required>
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label>سبب الإرجاع</label>
+        <input type="text" id="returnReason" placeholder="مثال: المقاس مش مناسب" required>
+      </div>
+      <button type="submit" class="checkout-btn" id="returnRequestBtn">إرسال طلب المرتجع</button>
+    </form>
+  </div>
+</div>
+
 <!-- ADMIN SETTINGS PANEL -->
 <div class="reports-panel" id="adminPanel">
   <div class="reports-head">
@@ -453,26 +489,16 @@
 
       <div class="stitch" style="margin:26px 0;"></div>
 
-      <h3 style="font-size:1rem; margin-bottom:12px;">🔄 إرجاع كمية للمخزون (مرتجع / إلغاء أوردر)</h3>
-      <form id="restockForm" onsubmit="return submitRestock(event)">
-        <div class="field" style="margin-bottom:14px;">
-          <label>المنتج</label>
-          <select id="restockProduct" required onchange="onRestockProductChange()"></select>
-        </div>
-        <div class="field" style="margin-bottom:14px; display:none;" id="restockSizeWrap">
-          <label>المقاس</label>
-          <select id="restockSize"></select>
-        </div>
-        <div class="field" style="margin-bottom:14px;">
-          <label>الكمية المرتجعة</label>
-          <input type="number" id="restockQty" min="1" value="1" required>
-        </div>
-        <div class="field" style="margin-bottom:18px;">
-          <label>ملاحظة (رقم الأوردر أو السبب)</label>
-          <input type="text" id="restockNote" placeholder="مثال: إلغاء أوردر أحمد - المنتج ماوصلش">
-        </div>
-        <button type="submit" class="checkout-btn" id="restockSaveBtn" style="background:var(--green);">إرجاع للمخزون</button>
-      </form>
+      <div class="stitch" style="margin:26px 0;"></div>
+
+      <h3 style="font-size:1rem; margin-bottom:12px;">🔄 إدارة طلبات المرتجعات</h3>
+      <button type="button" class="icon-btn ghost" style="width:100%; justify-content:center; margin-bottom:14px;" onclick="loadReturnsForAdmin()">تحميل / تحديث قائمة المرتجعات</button>
+      <div id="returnsAdminList"></div>
+
+      <div class="stitch" style="margin:26px 0;"></div>
+
+      <h3 style="font-size:1rem; margin-bottom:12px;">📊 تقارير المبيعات</h3>
+      <button type="button" class="icon-btn ghost" style="width:100%; justify-content:center; margin-bottom:14px;" onclick="toggleReports(true)">عرض التقارير حسب المحافظة</button>
 
       <div class="stitch" style="margin:26px 0;"></div>
 
@@ -642,73 +668,151 @@ function unlockAdminContent(){
   document.getElementById('setHeroBadge').value = siteSettings.hero_badge_text || '';
   document.getElementById('setFooterAbout').value = siteSettings.footer_about_text || '';
   document.getElementById('setFreeShipping').value = siteSettings.free_shipping_threshold || '';
-
-  const restockSelect = document.getElementById('restockProduct');
-  restockSelect.innerHTML = products.map(p =>
-    `<option value="${p.id}">${p.brand} / ${p.name}${p.sizes ? '' : ' (متاح حاليًا: ' + (p.stock ?? '—') + ')'}</option>`
-  ).join('');
-  onRestockProductChange();
 }
 
-function onRestockProductChange(){
-  const id = document.getElementById('restockProduct').value;
+function toggleReturnRequest(open){
+  document.getElementById('returnRequestPanel').classList.toggle('open', open);
+  document.getElementById('overlay').classList.toggle('open', open);
+  if(open){
+    const sel = document.getElementById('returnProduct');
+    sel.innerHTML = products.map(p => `<option value="${p.id}">${p.brand} / ${p.name}</option>`).join('');
+    onReturnProductChange();
+    document.getElementById('returnRequestForm').reset();
+    document.getElementById('returnQty').value = 1;
+  }
+}
+
+function onReturnProductChange(){
+  const id = document.getElementById('returnProduct').value;
   const p = products.find(x => x.id == id);
-  const wrap = document.getElementById('restockSizeWrap');
-  const sizeSelect = document.getElementById('restockSize');
+  const wrap = document.getElementById('returnSizeWrap');
+  const sizeSelect = document.getElementById('returnSize');
   if(p && p.sizes){
     wrap.style.display = 'block';
-    sizeSelect.innerHTML = Object.keys(p.sizes).map(sz =>
-      `<option value="${sz}">${sz} (متاح حاليًا: ${p.sizes[sz]})</option>`
-    ).join('');
+    sizeSelect.innerHTML = Object.keys(p.sizes).map(sz => `<option value="${sz}">${sz}</option>`).join('');
   } else {
     wrap.style.display = 'none';
     sizeSelect.innerHTML = '';
   }
 }
 
-async function submitRestock(e){
+async function submitReturnRequest(e){
   e.preventDefault();
   if(!BACKEND_ENABLED){
-    showToast('الباك إند لسه مش متظبط');
+    showToast('التتبع والمرتجعات مش متاحة دلوقتي');
     return false;
   }
-  const secret = verifiedAdminSecret;
-  const productId = document.getElementById('restockProduct').value;
-  const sizeWrap = document.getElementById('restockSizeWrap');
-  const size = sizeWrap.style.display !== 'none' ? document.getElementById('restockSize').value : null;
-  const qty = parseInt(document.getElementById('restockQty').value);
-  const note = document.getElementById('restockNote').value.trim();
+  const orderId = document.getElementById('returnOrderId').value.trim();
+  const productId = document.getElementById('returnProduct').value;
+  const sizeWrap = document.getElementById('returnSizeWrap');
+  const size = sizeWrap.style.display !== 'none' ? document.getElementById('returnSize').value : null;
+  const qty = parseInt(document.getElementById('returnQty').value);
+  const reason = document.getElementById('returnReason').value.trim();
 
-  const btn = document.getElementById('restockSaveBtn');
+  const btn = document.getElementById('returnRequestBtn');
   btn.disabled = true;
-  btn.textContent = 'جاري الإرجاع...';
+  btn.textContent = 'جاري الإرسال...';
 
   try{
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret, type: 'restock', productId, size, qty, note })
+      body: JSON.stringify({ secret: WEBAPP_SECRET, type: 'request_return', orderId, productId, size, qty, reason })
     });
     const json = await res.json();
     if(json.success){
-      showToast('اترجعت الكمية للمخزون بنجاح');
-      document.getElementById('restockForm').reset();
-      document.getElementById('restockQty').value = 1;
-      await loadProducts();
-      renderFilters();
-      renderProducts();
-      updateCartUI();
-      toggleAdmin(true); // نحدّث قايمة المنتجات بالأرقام الجديدة
+      showToast(`تم إرسال طلب المرتجع - رقمه: ${json.returnId}`);
+      toggleReturnRequest(false);
     } else {
-      showToast('كلمة السر غلط أو حصل خطأ - راجع الباك إند');
+      const errorMessages = {
+        order_not_found: 'رقم الأوردر ده مش موجود',
+        product_not_in_order: 'المنتج ده مش جزء من الأوردر ده - راجع رقم الأوردر',
+        invalid_input: 'البيانات ناقصة، اتأكد إنك ملّيت كل الحقول',
+        product_not_found: 'المنتج ده مش موجود'
+      };
+      showToast(errorMessages[json.error] || 'حصل خطأ، جرب تاني');
     }
-  } catch(err){
-    showToast('فشل الاتصال بالباك إند، جرب تاني');
+  }catch(err){
+    showToast('فشل الاتصال، جرب تاني');
   }
 
   btn.disabled = false;
-  btn.textContent = 'إرجاع للمخزون';
+  btn.textContent = 'إرسال طلب المرتجع';
   return false;
+}
+
+async function loadReturnsForAdmin(){
+  const listEl = document.getElementById('returnsAdminList');
+  const secret = verifiedAdminSecret;
+  if(!BACKEND_ENABLED){
+    showToast('الباك إند لسه مش متظبط');
+    return;
+  }
+  listEl.innerHTML = '<div class="reports-empty">جاري التحميل...</div>';
+
+  try{
+    const res = await fetch(`${WEBAPP_URL}?type=returns_list&secret=${encodeURIComponent(secret)}`);
+    const json = await res.json();
+    if(!json.success || !Array.isArray(json.returns)){
+      listEl.innerHTML = '<div class="reports-empty">كلمة السر غلط أو حصل خطأ</div>';
+      return;
+    }
+    const returnsList = json.returns.slice().reverse();
+    if(returnsList.length === 0){
+      listEl.innerHTML = '<div class="reports-empty">مفيش طلبات مرتجعات لسه</div>';
+      return;
+    }
+
+    const statusOptions = ['قيد المراجعة', 'تم القبول - رجّع للمخزون', 'مرفوض'];
+    listEl.innerHTML = returnsList.map(r => `
+      <div class="order-row">
+        <div class="order-row-top">
+          <span class="order-row-id">${r['ReturnID'] || '—'}</span>
+          <span class="order-row-date">${r['التاريخ'] || ''}</span>
+        </div>
+        <div class="order-row-items">
+          أوردر: ${r['OrderID'] || ''}<br>
+          ${r['المنتج'] || ''}${r['المقاس'] ? ' - مقاس ' + r['المقاس'] : ''} × ${r['الكمية'] || ''}<br>
+          السبب: ${r['السبب'] || '—'}
+        </div>
+        <div class="order-row-foot">
+          <select class="order-status-select" data-returnid="${r['ReturnID']}">
+            ${statusOptions.map(s => `<option value="${s}" ${r['الحالة']===s ? 'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.order-status-select').forEach(sel => {
+      sel.addEventListener('change', () => changeReturnStatus(sel.dataset.returnid, sel.value));
+    });
+  } catch(err){
+    listEl.innerHTML = '<div class="reports-empty">فشل الاتصال بالباك إند</div>';
+  }
+}
+
+async function changeReturnStatus(returnId, status){
+  const secret = verifiedAdminSecret;
+  try{
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret, type: 'update_return_status', returnId, status })
+    });
+    const json = await res.json();
+    if(json.success){
+      showToast('اتحدثت حالة المرتجع' + (status === 'تم القبول - رجّع للمخزون' ? ' والمخزون اترجع فعليًا' : ''));
+      if(status === 'تم القبول - رجّع للمخزون'){
+        await loadProducts();
+        renderFilters();
+        renderProducts();
+      }
+    } else {
+      showToast('حصل خطأ، جرب تاني');
+    }
+  }catch(err){
+    showToast('فشل الاتصال بالباك إند');
+  }
 }
 
 async function loadOrdersForAdmin(){
@@ -1214,6 +1318,10 @@ function toggleDrawer(open){
   if(open) showCartView();
 }
 function toggleReports(open){
+  if(open && !verifiedAdminSecret){
+    showToast('لازم تفتح لوحة الإدارة وتدخل كلمة السر الأول');
+    return;
+  }
   document.getElementById('reportsPanel').classList.toggle('open', open);
   document.getElementById('overlay').classList.toggle('open', open);
   if(open) renderReports();
@@ -1223,6 +1331,7 @@ function closeAllPanels(){
   document.getElementById('reportsPanel').classList.remove('open');
   document.getElementById('adminPanel').classList.remove('open');
   document.getElementById('trackPanel').classList.remove('open');
+  document.getElementById('returnRequestPanel').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
 
@@ -1404,7 +1513,7 @@ async function renderReports(){
 
   if(BACKEND_ENABLED){
     try{
-      const res = await fetch(`${WEBAPP_URL}?secret=${encodeURIComponent(WEBAPP_SECRET)}`);
+      const res = await fetch(`${WEBAPP_URL}?secret=${encodeURIComponent(verifiedAdminSecret)}`);
       const json = await res.json();
       if(json.success && Array.isArray(json.orders)){
         sourceOrders = json.orders.map(o => ({
