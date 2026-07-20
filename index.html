@@ -391,65 +391,80 @@
     <button class="close-btn" onclick="toggleAdmin(false)">✕</button>
   </div>
   <div class="reports-body">
-    <div class="reports-note">
-      التعديلات هنا بتتخزن في تبويب Settings بنفس الشيت، وبتظهر لكل زوار الموقع بمجرد الحفظ. محتاج كلمة السر بتاعة الباك إند عشان تحفظ.
+
+    <!-- بوابة كلمة السر - أول حاجة تظهر -->
+    <div id="adminGate">
+      <div class="reports-note">
+        لوحة الإدارة محمية بكلمة سر. اكتبها وادخل عشان تقدر تشوف وتعدّل أي حاجة.
+      </div>
+      <form onsubmit="return verifyAdminSecret(event)">
+        <div class="field" style="margin-bottom:14px;">
+          <label>كلمة السر</label>
+          <input type="password" id="adminGateSecret" required placeholder="اكتب كلمة السر" autofocus>
+        </div>
+        <button type="submit" class="checkout-btn" id="adminGateBtn">دخول</button>
+      </form>
     </div>
-    <form id="adminForm" onsubmit="return saveSettings(event)">
-      <div class="field" style="margin-bottom:14px;">
-        <label>كلمة السر</label>
-        <input type="password" id="adminSecret" required placeholder="نفس كلمة سر الباك إند">
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>رقم الواتساب (بصيغة دولية، مثال: 20155xxxxxxx)</label>
-        <input type="text" id="setWhatsapp" placeholder="201012345678">
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>رابط الفيسبوك</label>
-        <input type="text" id="setFacebook" placeholder="https://facebook.com/yourpage">
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>رابط الإنستجرام</label>
-        <input type="text" id="setInstagram" placeholder="https://instagram.com/yourpage">
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>نص شارة البانر الرئيسي</label>
-        <input type="text" id="setHeroBadge" placeholder="ماركات مصرية مختلفة تحت سقف واحد">
-      </div>
-      <div class="field" style="margin-bottom:18px;">
-        <label>نص الفوتر التعريفي</label>
-        <input type="text" id="setFooterAbout" placeholder="ماركات كتير، سعر واحد يريحك.">
-      </div>
-      <button type="submit" class="checkout-btn" id="adminSaveBtn">حفظ الإعدادات</button>
-    </form>
 
-    <div class="stitch" style="margin:26px 0;"></div>
+    <!-- محتوى الإدارة كله - مخفي لحد ما كلمة السر تتأكد -->
+    <div id="adminContent" style="display:none;">
+      <div class="reports-note">
+        التعديلات هنا بتتخزن مباشرة في الشيت، وبتظهر لكل زوار الموقع بمجرد الحفظ.
+      </div>
+      <form id="adminForm" onsubmit="return saveSettings(event)">
+        <div class="field" style="margin-bottom:14px;">
+          <label>رقم الواتساب (بصيغة دولية، مثال: 20155xxxxxxx)</label>
+          <input type="text" id="setWhatsapp" placeholder="201012345678">
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>رابط الفيسبوك</label>
+          <input type="text" id="setFacebook" placeholder="https://facebook.com/yourpage">
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>رابط الإنستجرام</label>
+          <input type="text" id="setInstagram" placeholder="https://instagram.com/yourpage">
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>نص شارة البانر الرئيسي</label>
+          <input type="text" id="setHeroBadge" placeholder="ماركات مصرية مختلفة تحت سقف واحد">
+        </div>
+        <div class="field" style="margin-bottom:18px;">
+          <label>نص الفوتر التعريفي</label>
+          <input type="text" id="setFooterAbout" placeholder="ماركات كتير، سعر واحد يريحك.">
+        </div>
+        <button type="submit" class="checkout-btn" id="adminSaveBtn">حفظ الإعدادات</button>
+      </form>
 
-    <h3 style="font-size:1rem; margin-bottom:12px;">🔄 إرجاع كمية للمخزون (مرتجع / إلغاء أوردر)</h3>
-    <form id="restockForm" onsubmit="return submitRestock(event)">
-      <div class="field" style="margin-bottom:14px;">
-        <label>المنتج</label>
-        <select id="restockProduct" required onchange="onRestockProductChange()"></select>
-      </div>
-      <div class="field" style="margin-bottom:14px; display:none;" id="restockSizeWrap">
-        <label>المقاس</label>
-        <select id="restockSize"></select>
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>الكمية المرتجعة</label>
-        <input type="number" id="restockQty" min="1" value="1" required>
-      </div>
-      <div class="field" style="margin-bottom:18px;">
-        <label>ملاحظة (رقم الأوردر أو السبب)</label>
-        <input type="text" id="restockNote" placeholder="مثال: إلغاء أوردر أحمد - المنتج ماوصلش">
-      </div>
-      <button type="submit" class="checkout-btn" id="restockSaveBtn" style="background:var(--green);">إرجاع للمخزون</button>
-    </form>
+      <div class="stitch" style="margin:26px 0;"></div>
 
-    <div class="stitch" style="margin:26px 0;"></div>
+      <h3 style="font-size:1rem; margin-bottom:12px;">🔄 إرجاع كمية للمخزون (مرتجع / إلغاء أوردر)</h3>
+      <form id="restockForm" onsubmit="return submitRestock(event)">
+        <div class="field" style="margin-bottom:14px;">
+          <label>المنتج</label>
+          <select id="restockProduct" required onchange="onRestockProductChange()"></select>
+        </div>
+        <div class="field" style="margin-bottom:14px; display:none;" id="restockSizeWrap">
+          <label>المقاس</label>
+          <select id="restockSize"></select>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>الكمية المرتجعة</label>
+          <input type="number" id="restockQty" min="1" value="1" required>
+        </div>
+        <div class="field" style="margin-bottom:18px;">
+          <label>ملاحظة (رقم الأوردر أو السبب)</label>
+          <input type="text" id="restockNote" placeholder="مثال: إلغاء أوردر أحمد - المنتج ماوصلش">
+        </div>
+        <button type="submit" class="checkout-btn" id="restockSaveBtn" style="background:var(--green);">إرجاع للمخزون</button>
+      </form>
 
-    <h3 style="font-size:1rem; margin-bottom:12px;">📦 إدارة الأوردرات</h3>
-    <button type="button" class="icon-btn ghost" style="width:100%; justify-content:center; margin-bottom:14px;" onclick="loadOrdersForAdmin()">تحميل / تحديث قائمة الأوردرات</button>
-    <div id="ordersAdminList"></div>
+      <div class="stitch" style="margin:26px 0;"></div>
+
+      <h3 style="font-size:1rem; margin-bottom:12px;">📦 إدارة الأوردرات</h3>
+      <button type="button" class="icon-btn ghost" style="width:100%; justify-content:center; margin-bottom:14px;" onclick="loadOrdersForAdmin()">تحميل / تحديث قائمة الأوردرات</button>
+      <div id="ordersAdminList"></div>
+    </div>
+
   </div>
 </div>
 
@@ -540,22 +555,69 @@ function applySettings(){
   if(siteSettings.instagram_url){ document.getElementById('footerInstagram').href = siteSettings.instagram_url; }
 }
 
+let verifiedAdminSecret = ''; // بتتخزن بس بعد ما كلمة السر تتأكد صح، لحد ما الصفحة تتقفل
+
 function toggleAdmin(open){
   document.getElementById('adminPanel').classList.toggle('open', open);
   document.getElementById('overlay').classList.toggle('open', open);
   if(open){
-    document.getElementById('setWhatsapp').value = siteSettings.whatsapp_number || '';
-    document.getElementById('setFacebook').value = siteSettings.facebook_url || '';
-    document.getElementById('setInstagram').value = siteSettings.instagram_url || '';
-    document.getElementById('setHeroBadge').value = siteSettings.hero_badge_text || '';
-    document.getElementById('setFooterAbout').value = siteSettings.footer_about_text || '';
-
-    const restockSelect = document.getElementById('restockProduct');
-    restockSelect.innerHTML = products.map(p =>
-      `<option value="${p.id}">${p.brand} / ${p.name}${p.sizes ? '' : ' (متاح حاليًا: ' + (p.stock ?? '—') + ')'}</option>`
-    ).join('');
-    onRestockProductChange();
+    if(verifiedAdminSecret){
+      unlockAdminContent();
+    } else {
+      document.getElementById('adminGate').style.display = 'block';
+      document.getElementById('adminContent').style.display = 'none';
+      document.getElementById('adminGateSecret').value = '';
+    }
   }
+}
+
+async function verifyAdminSecret(e){
+  e.preventDefault();
+  const secret = document.getElementById('adminGateSecret').value.trim();
+  const btn = document.getElementById('adminGateBtn');
+  btn.disabled = true;
+  btn.textContent = 'جاري التحقق...';
+
+  if(!BACKEND_ENABLED){
+    showToast('الباك إند لسه مش متظبط');
+    btn.disabled = false;
+    btn.textContent = 'دخول';
+    return false;
+  }
+
+  try{
+    const res = await fetch(`${WEBAPP_URL}?type=verify_secret&secret=${encodeURIComponent(secret)}`);
+    const json = await res.json();
+    if(json.success){
+      verifiedAdminSecret = secret;
+      unlockAdminContent();
+    } else {
+      showToast('كلمة السر غلط');
+    }
+  }catch(err){
+    showToast('فشل الاتصال بالباك إند');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'دخول';
+  return false;
+}
+
+function unlockAdminContent(){
+  document.getElementById('adminGate').style.display = 'none';
+  document.getElementById('adminContent').style.display = 'block';
+
+  document.getElementById('setWhatsapp').value = siteSettings.whatsapp_number || '';
+  document.getElementById('setFacebook').value = siteSettings.facebook_url || '';
+  document.getElementById('setInstagram').value = siteSettings.instagram_url || '';
+  document.getElementById('setHeroBadge').value = siteSettings.hero_badge_text || '';
+  document.getElementById('setFooterAbout').value = siteSettings.footer_about_text || '';
+
+  const restockSelect = document.getElementById('restockProduct');
+  restockSelect.innerHTML = products.map(p =>
+    `<option value="${p.id}">${p.brand} / ${p.name}${p.sizes ? '' : ' (متاح حاليًا: ' + (p.stock ?? '—') + ')'}</option>`
+  ).join('');
+  onRestockProductChange();
 }
 
 function onRestockProductChange(){
@@ -580,12 +642,7 @@ async function submitRestock(e){
     showToast('الباك إند لسه مش متظبط');
     return false;
   }
-  const secret = document.getElementById('adminSecret').value.trim();
-  if(!secret){
-    showToast('اكتب كلمة السر فوق في خانة كلمة السر الأول');
-    return false;
-  }
-  const productId = document.getElementById('restockProduct').value;
+  const secret = verifiedAdminSecret;
   const sizeWrap = document.getElementById('restockSizeWrap');
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('restockSize').value : null;
   const qty = parseInt(document.getElementById('restockQty').value);
@@ -625,11 +682,7 @@ async function submitRestock(e){
 
 async function loadOrdersForAdmin(){
   const listEl = document.getElementById('ordersAdminList');
-  const secret = document.getElementById('adminSecret').value.trim();
-  if(!secret){
-    showToast('اكتب كلمة السر فوق الأول');
-    return;
-  }
+  const secret = verifiedAdminSecret;
   if(!BACKEND_ENABLED){
     showToast('الباك إند لسه مش متظبط');
     return;
@@ -675,7 +728,7 @@ async function loadOrdersForAdmin(){
 }
 
 async function changeOrderStatus(orderId, status){
-  const secret = document.getElementById('adminSecret').value.trim();
+  const secret = verifiedAdminSecret;
   try{
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
@@ -699,7 +752,7 @@ async function saveSettings(e){
     showToast('الباك إند لسه مش متظبط، مينفعش تحفظ إعدادات دلوقتي');
     return false;
   }
-  const secret = document.getElementById('adminSecret').value.trim();
+  const secret = verifiedAdminSecret;
   const newSettings = {
     whatsapp_number: document.getElementById('setWhatsapp').value.trim() || siteSettings.whatsapp_number,
     facebook_url: document.getElementById('setFacebook').value.trim(),
@@ -722,7 +775,6 @@ async function saveSettings(e){
     if(json.success){
       siteSettings = Object.assign(siteSettings, newSettings);
       applySettings();
-      document.getElementById('adminSecret').value = '';
       toggleAdmin(false);
       showToast('اتحفظت الإعدادات بنجاح');
     } else {
