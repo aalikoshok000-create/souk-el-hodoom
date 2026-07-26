@@ -6,6 +6,8 @@
 <title>سوق الهدوم — ماركات كتير، سعر واحد يريحك</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- reCAPTCHA v3: بعد ما تعمل حساب على google.com/recaptcha/admin/create، غيّر YOUR_RECAPTCHA_SITE_KEY هنا وفي الكود تحت لنفس القيمة -->
+<script src="https://www.google.com/recaptcha/api.js?render=6LdBYGYtAAAAAE-Dzum2rhVliWzJsWSU1Qg8LQcM"></script>
 <style>
   :root{
     --bg: #FAF9F6;
@@ -251,15 +253,14 @@
     <div class="sticker" id="heroDealSticker">خصم<br>٣٠٪</div>
     <div class="was" id="heroDealWas">بدل ٤٥٠ ج.م</div>
     <div class="now" id="heroDealNow">٣١٥ ج.م</div>
-    <div class="note" id="heroDealNote">على قطع مختارة من كذا ماركة لفترة محدودة</div>
+    <div class="note" id="heroDealNote">على قطع مختارة من كذا ماركة النهاردة بس</div>
   </div>
 </section>
 
 <div class="trust">
-  <div class="trust-item"><span class="ico">🚚</span> توصيل سريع </div>
+  <div class="trust-item"><span class="ico">🚚</span> توصيل سريع لكل مصر</div>
   <div class="trust-item"><span class="ico">💵</span> الدفع عند الاستلام</div>
   <div class="trust-item"><span class="ico">🔄</span> استبدال سهل خلال ٧ أيام</div>
-  <div class="trust-item"><span class="ico">🔄</span> معاينة قبل الاستلام</div>
   <div class="trust-item"><span class="ico">🏷️</span> ماركات متعددة، سعر واضح</div>
 </div>
 
@@ -281,16 +282,15 @@
 <section id="about">
   <div class="about">
     <div class="about-text">
-      <h2 style="font-size:1.5rem; margin-bottom:16px;">إحنا ليه اسعارنا رخيصة؟</h2>
+      <h2 style="font-size:1.5rem; margin-bottom:16px;">إحنا ليه رخاص؟</h2>
       <p>لأننا بنجمع كذا ماركة صغيرة ومتوسطة في مكان واحد من غير وسطاء كتير، فالفرق بيرجعلك في السعر مش في الجودة.</p>
       <p>هدفنا إن كل واحد يقدر يلبس كويس من غير ما يستنى العروض أو المناسبات.</p>
     </div>
     <div class="about-stats">
-      
-      <div class="stat"><b></b><span></span></div>
-      <div class="stat"><b></b><span></span></div>
+      <div class="stat"><b>+٥٠٠٠</b><span>عميل بيشتري شهريًا</span></div>
+      <div class="stat"><b>٢٧ محافظة</b><span>بنوصّل لها</span></div>
       <div class="stat"><b>+٤ ماركات</b><span>تحت سقف واحد</span></div>
-      <div class="stat"><b></b><span></span></div>
+      <div class="stat"><b>٤.٧ / ٥</b><span>تقييم العملاء</span></div>
     </div>
   </div>
 </section>
@@ -329,6 +329,7 @@
       <div id="drawerItems"></div>
     </div>
     <form class="checkout-form" id="checkoutForm" onsubmit="return submitOrder(event)">
+      <input type="text" id="custWebsite" name="website" autocomplete="off" tabindex="-1" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" aria-hidden="true">
       <button type="button" class="back-link" onclick="showCartView()">‹ رجوع للسلة</button>
       <div class="field">
         <label>الاسم</label>
@@ -422,6 +423,7 @@
       اكتب رقم الأوردر اللي جالك في رسالة الواتساب، وهنراجع طلبك ونرد عليك في أقرب وقت.
     </div>
     <form id="returnRequestForm" onsubmit="return submitReturnRequest(event)">
+      <input type="text" id="returnWebsite" name="website" autocomplete="off" tabindex="-1" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" aria-hidden="true">
       <div class="field" style="margin-bottom:14px;">
         <label>رقم الأوردر (OrderID)</label>
         <input type="text" id="returnOrderId" required placeholder="مثال: ORD-1721234567890">
@@ -570,6 +572,30 @@
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwfldnJICp5sEo5BbOvveDcDSNQ9daQvR09RE9t4ddZCj2My208TlL4uR8Oq-iOH8yqww/exec';
 const WEBAPP_SECRET = 'koshok99AHMED'; // لازم تطابق نفس القيمة في السكريبت بالظبط
 const BACKEND_ENABLED = WEBAPP_URL.trim().length > 0;
+
+// ====== إعدادات الحماية من البوتات (reCAPTCHA v3) ======
+// نفس القيمة اللي حطيتها في وسم الـ script فوق في <head>
+const RECAPTCHA_SITE_KEY = '6LdBYGYtAAAAAE-Dzum2rhVliWzJsWSU1Qg8LQcM';
+const RECAPTCHA_ENABLED = RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY' && RECAPTCHA_SITE_KEY.trim() !== '';
+
+/**
+ * بيجيب توكن reCAPTCHA v3 غير مرئي للعميل خالص - بيشتغل في الخلفية.
+ * لو reCAPTCHA لسه مش متظبط، بيرجع null والباك إند هيتجاهل الفحص ده تلقائيًا.
+ */
+function getRecaptchaToken(action){
+  if(!RECAPTCHA_ENABLED || typeof grecaptcha === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try{
+      grecaptcha.ready(() => {
+        grecaptcha.execute(RECAPTCHA_SITE_KEY, { action })
+          .then(resolve)
+          .catch(() => resolve(null));
+      });
+    }catch(err){
+      resolve(null);
+    }
+  });
+}
 
 // قائمة احتياطية بتتستخدم بس لو تبويب Governorates لسه مش متظبط أو الاتصال فشل
 const fallbackGovernorates = [
@@ -833,16 +859,19 @@ async function submitReturnRequest(e){
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('returnSize').value : null;
   const qty = parseInt(document.getElementById('returnQty').value);
   const reason = document.getElementById('returnReason').value.trim();
+  const honeypot = document.getElementById('returnWebsite').value;
 
   const btn = document.getElementById('returnRequestBtn');
   btn.disabled = true;
   btn.textContent = 'جاري الإرسال...';
 
+  const recaptchaToken = await getRecaptchaToken('submit_return');
+
   try{
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret: WEBAPP_SECRET, type: 'request_return', orderId, productId, size, qty, reason })
+      body: JSON.stringify({ secret: WEBAPP_SECRET, type: 'request_return', orderId, productId, size, qty, reason, honeypot, recaptchaToken })
     });
     const json = await res.json();
     if(json.success){
@@ -853,7 +882,8 @@ async function submitReturnRequest(e){
         order_not_found: 'رقم الأوردر ده مش موجود',
         product_not_in_order: 'المنتج ده مش جزء من الأوردر ده - راجع رقم الأوردر',
         invalid_input: 'البيانات ناقصة، اتأكد إنك ملّيت كل الحقول',
-        product_not_found: 'المنتج ده مش موجود'
+        product_not_found: 'المنتج ده مش موجود',
+        recaptcha_failed: 'مقدرناش نتأكد إنك مش بوت، جرب تعمل رفريش للصفحة وتاني'
       };
       showToast(errorMessages[json.error] || 'حصل خطأ، جرب تاني');
     }
@@ -1579,11 +1609,14 @@ async function submitOrder(e){
   const subtotal = cartTotal();
   const { shipping: shippingCost, otherFees } = getShippingCost(gov, area, subtotal);
   const total = subtotal + shippingCost + otherFees;
-  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, subtotal, shipping: shippingCost, otherFees, total };
+  const honeypot = document.getElementById('custWebsite').value;
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.textContent = 'جاري التأكد من توفر المنتجات...';
+
+  const recaptchaToken = await getRecaptchaToken('submit_order');
+  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, subtotal, shipping: shippingCost, otherFees, total, honeypot, recaptchaToken };
 
   if(BACKEND_ENABLED){
     try{
@@ -1605,6 +1638,10 @@ async function submitOrder(e){
           updateCartUI();
         } else if(json.error === 'busy'){
           showToast('في زحمة طلبات دلوقتي، جرب تاني بعد شوية');
+        } else if(json.error === 'rate_limited'){
+          showToast('في أوردرات كتير بنفس الرقم في وقت قصير، استنى شوية وجرب تاني');
+        } else if(json.error === 'recaptcha_failed'){
+          showToast('مقدرناش نتأكد إنك مش بوت، جرب تعمل رفريش للصفحة وتاني');
         } else {
           showToast('حصلت مشكلة في تسجيل الطلب، جرب تاني');
         }
