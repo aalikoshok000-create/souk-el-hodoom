@@ -219,6 +219,12 @@
   .receipt-total-row{ display:flex; justify-content:space-between; font-family:'Almarai'; font-weight:800; font-size:1.05rem; margin-top:10px; padding-top:10px; border-top:2px solid var(--ink); }
   .receipt-actions{ display:flex; gap:10px; margin-top:20px; }
   .receipt-actions button{ flex:1; }
+
+  @media print {
+    body *{ visibility:hidden; }
+    #receiptContent, #receiptContent *{ visibility:visible; }
+    #receiptContent{ position:absolute; top:0; right:0; left:0; width:100%; }
+  }
   .modal-body{ padding:24px 26px 28px; }
   .modal-desc{ color:var(--ink-soft); line-height:1.9; font-size:0.9rem; margin:10px 0 16px; }
   @media (max-width:600px){ .modal-media{ height:220px; } }
@@ -587,7 +593,8 @@
     <div style="padding:26px 26px 0;">
       <div id="receiptContent" class="receipt-box"></div>
       <div class="receipt-actions" style="padding-bottom:26px;">
-        <button class="icon-btn ghost" style="justify-content:center;" onclick="downloadReceiptImage()">📥 تحميل كصورة</button>
+        <button class="icon-btn ghost" style="justify-content:center;" onclick="window.print()">🖨️ طباعة</button>
+        <button class="icon-btn ghost" style="justify-content:center;" onclick="downloadReceiptImage()">📥 صورة</button>
         <button class="icon-btn" style="justify-content:center;" onclick="sendReceiptToWhatsapp()">💬 واتساب</button>
       </div>
     </div>
@@ -904,8 +911,14 @@ async function submitReturnRequest(e){
     });
     const json = await res.json();
     if(json.success){
-      showToast(`تم إرسال طلب المرتجع - رقمه: ${json.returnId}`);
       toggleReturnRequest(false);
+      const p = products.find(x => x.id == productId);
+      showReturnReceipt({
+        returnId: json.returnId,
+        date: new Date().toLocaleString('ar-EG'),
+        orderId, productName: p ? p.name : '', size, qty, reason,
+        status: 'قيد المراجعة'
+      });
     } else {
       const errorMessages = {
         order_not_found: 'رقم الأوردر ده مش موجود',
@@ -925,6 +938,23 @@ async function submitReturnRequest(e){
   return false;
 }
 
+let lastAdminReturnsList = [];
+
+function viewReturnReceiptAdmin(idx){
+  const r = lastAdminReturnsList[idx];
+  if(!r) return;
+  showReturnReceipt({
+    returnId: r['ReturnID'],
+    date: r['التاريخ'],
+    orderId: r['OrderID'],
+    productName: r['المنتج'],
+    size: r['المقاس'],
+    qty: r['الكمية'],
+    reason: r['السبب'],
+    status: r['الحالة']
+  });
+}
+
 async function loadReturnsForAdmin(){
   const listEl = document.getElementById('returnsAdminList');
   const secret = verifiedAdminSecret;
@@ -942,13 +972,14 @@ async function loadReturnsForAdmin(){
       return;
     }
     const returnsList = json.returns.slice().reverse();
+    lastAdminReturnsList = returnsList;
     if(returnsList.length === 0){
       listEl.innerHTML = '<div class="reports-empty">مفيش طلبات مرتجعات لسه</div>';
       return;
     }
 
     const statusOptions = ['قيد المراجعة', 'تم القبول - رجّع للمخزون', 'مرفوض'];
-    listEl.innerHTML = returnsList.map(r => `
+    listEl.innerHTML = returnsList.map((r, idx) => `
       <div class="order-row">
         <div class="order-row-top">
           <span class="order-row-id">${r['ReturnID'] || '—'}</span>
@@ -960,6 +991,7 @@ async function loadReturnsForAdmin(){
           السبب: ${r['السبب'] || '—'}
         </div>
         <div class="order-row-foot">
+          <button type="button" class="icon-btn ghost" style="padding:6px 12px; font-size:0.76rem;" onclick="viewReturnReceiptAdmin(${idx})">🖨️ الفاتورة</button>
           <select class="order-status-select" data-returnid="${r['ReturnID']}">
             ${statusOptions.map(s => `<option value="${s}" ${r['الحالة']===s ? 'selected':''}>${s}</option>`).join('')}
           </select>
@@ -999,6 +1031,34 @@ async function changeReturnStatus(returnId, status){
   }
 }
 
+let lastAdminOrdersList = [];
+
+function viewOrderReceiptAdmin(idx){
+  const o = lastAdminOrdersList[idx];
+  if(!o) return;
+
+  let items = [];
+  try{
+    if(o['ItemsJSON']) items = JSON.parse(o['ItemsJSON']);
+  }catch(err){ items = []; }
+
+  showOrderReceipt({
+    orderId: o['OrderID'],
+    date: o['التاريخ'],
+    name: o['الاسم'],
+    phone: o['الموبايل'],
+    gov: o['المحافظة'],
+    area: o['المنطقة'],
+    status: o['الحالة'],
+    items: items,
+    itemsTextFallback: o['المنتجات'],
+    subtotal: Number(o['قيمة المنتجات']) || 0,
+    shippingCost: Number(o['الشحن']) || 0,
+    otherFees: Number(o['مصاريف أخرى']) || 0,
+    total: Number(o['الإجمالي']) || 0
+  });
+}
+
 async function loadOrdersForAdmin(){
   const listEl = document.getElementById('ordersAdminList');
   const secret = verifiedAdminSecret;
@@ -1016,13 +1076,14 @@ async function loadOrdersForAdmin(){
       return;
     }
     const orders = json.orders.slice().reverse(); // الأحدث فوق
+    lastAdminOrdersList = orders;
     if(orders.length === 0){
       listEl.innerHTML = '<div class="reports-empty">مفيش أوردرات لسه</div>';
       return;
     }
 
     const statusOptions = ['قيد التجهيز', 'تم الشحن', 'تم التسليم', 'ملغي'];
-    listEl.innerHTML = orders.map(o => `
+    listEl.innerHTML = orders.map((o, idx) => `
       <div class="order-row">
         <div class="order-row-top">
           <span class="order-row-id">${o['OrderID'] || '—'}</span>
@@ -1031,6 +1092,7 @@ async function loadOrdersForAdmin(){
         <div class="order-row-items">${o['الاسم'] || ''} — ${o['المحافظة'] || ''} / ${o['المنطقة'] || ''}<br>${o['المنتجات'] || ''}</div>
         <div class="order-row-foot">
           <span class="order-row-total">${fmt(Number(o['الإجمالي']) || 0)}</span>
+          <button type="button" class="icon-btn ghost" style="padding:6px 12px; font-size:0.76rem;" onclick="viewOrderReceiptAdmin(${idx})">🖨️ الفاتورة</button>
           <select class="order-status-select" data-orderid="${o['OrderID']}">
             ${statusOptions.map(s => `<option value="${s}" ${o['الحالة']===s ? 'selected':''}>${s}</option>`).join('')}
           </select>
@@ -1634,14 +1696,21 @@ function populateAreas(){
 }
 
 let lastOrderReceipt = null;
+let lastReturnReceipt = null;
+let receiptMode = 'order'; // 'order' أو 'return' - بيحدد شكل الفاتورة وزرار الواتساب
 
 function showOrderReceipt(o){
-  const itemsHTML = o.items.map(it => `
-    <div class="receipt-item-row">
-      <span>${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}</span>
-      <span>${fmt(it.price * it.qty)}</span>
-    </div>
-  `).join('');
+  receiptMode = 'order';
+  lastOrderReceipt = o;
+
+  const itemsHTML = o.items && o.items.length
+    ? o.items.map(it => `
+        <div class="receipt-item-row">
+          <span>${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}</span>
+          <span>${fmt((it.price || 0) * it.qty)}</span>
+        </div>
+      `).join('')
+    : `<div class="receipt-item-row"><span>${o.itemsTextFallback || '—'}</span></div>`;
 
   document.getElementById('receiptContent').innerHTML = `
     <div class="receipt-header">
@@ -1653,11 +1722,31 @@ function showOrderReceipt(o){
     <div class="receipt-row"><span class="label">الموبايل</span><span>${o.phone}</span></div>
     <div class="receipt-row"><span class="label">العنوان</span><span>${o.gov} - ${o.area}</span></div>
     <div class="receipt-row"><span class="label">طريقة الدفع</span><span>الدفع عند الاستلام</span></div>
+    ${o.status ? `<div class="receipt-row"><span class="label">الحالة</span><span>${o.status}</span></div>` : ''}
     <div class="receipt-items">${itemsHTML}</div>
     <div class="receipt-row"><span class="label">المنتجات</span><span>${fmt(o.subtotal)}</span></div>
     <div class="receipt-row"><span class="label">الشحن</span><span>${o.shippingCost > 0 ? fmt(o.shippingCost) : 'مجاني'}</span></div>
     ${o.otherFees > 0 ? `<div class="receipt-row"><span class="label">مصاريف أخرى</span><span>${fmt(o.otherFees)}</span></div>` : ''}
     <div class="receipt-total-row"><span>الإجمالي</span><span>${fmt(o.total)}</span></div>
+  `;
+  document.getElementById('receiptModalBackdrop').classList.add('open');
+}
+
+function showReturnReceipt(r){
+  receiptMode = 'return';
+  lastReturnReceipt = r;
+
+  document.getElementById('receiptContent').innerHTML = `
+    <div class="receipt-header">
+      <h2>سوق الهدوم</h2>
+      <div class="receipt-id">طلب مرتجع: ${r.returnId || '—'}</div>
+      <div class="receipt-date">${r.date}</div>
+    </div>
+    <div class="receipt-row"><span class="label">رقم الأوردر المرتبط</span><span>${r.orderId}</span></div>
+    <div class="receipt-row"><span class="label">المنتج</span><span>${r.productName}${r.size ? ' (مقاس ' + r.size + ')' : ''}</span></div>
+    <div class="receipt-row"><span class="label">الكمية</span><span>${r.qty}</span></div>
+    <div class="receipt-row"><span class="label">سبب الإرجاع</span><span>${r.reason || '—'}</span></div>
+    <div class="receipt-row"><span class="label">الحالة</span><span>${r.status || 'قيد المراجعة'}</span></div>
   `;
   document.getElementById('receiptModalBackdrop').classList.add('open');
 }
@@ -1668,9 +1757,12 @@ function closeOrderReceipt(){
 
 function downloadReceiptImage(){
   const el = document.getElementById('receiptContent');
+  const refId = receiptMode === 'return'
+    ? (lastReturnReceipt ? lastReturnReceipt.returnId : 'مرتجع')
+    : (lastOrderReceipt ? lastOrderReceipt.orderId : 'طلب');
   html2canvas(el, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
     const link = document.createElement('a');
-    link.download = `فاتورة-${lastOrderReceipt ? lastOrderReceipt.orderId : 'طلب'}.png`;
+    link.download = `فاتورة-${refId}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   }).catch(() => {
@@ -1679,6 +1771,17 @@ function downloadReceiptImage(){
 }
 
 function sendReceiptToWhatsapp(){
+  if(receiptMode === 'return'){
+    const r = lastReturnReceipt;
+    if(!r) return;
+    let msg = `طلب مرتجع رقم: ${r.returnId}%0A`;
+    msg += `أوردر: ${r.orderId}%0A`;
+    msg += `المنتج: ${r.productName}${r.size ? ' (مقاس ' + r.size + ')' : ''} × ${r.qty}%0A`;
+    msg += `السبب: ${r.reason}`;
+    window.open(`https://wa.me/${siteSettings.whatsapp_number}?text=${msg}`, '_blank');
+    return;
+  }
+
   const o = lastOrderReceipt;
   if(!o) return;
   let msg = `أهلاً، اسمي ${o.name}%0A`;
@@ -1686,7 +1789,7 @@ function sendReceiptToWhatsapp(){
   msg += `المحافظة: ${o.gov} - ${o.area}%0A`;
   msg += `طريقة الدفع: الدفع عند الاستلام%0A`;
   msg += 'الطلب:%0A';
-  o.items.forEach(it => { msg += `- ${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}%0A`; });
+  (o.items || []).forEach(it => { msg += `- ${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}%0A`; });
   msg += `المنتجات: ${o.subtotal} ج.م%0A`;
   msg += `الشحن: ${o.shippingCost > 0 ? o.shippingCost + ' ج.م' : 'مجاني'}%0A`;
   if(o.otherFees > 0){ msg += `مصاريف أخرى: ${o.otherFees} ج.م%0A`; }
