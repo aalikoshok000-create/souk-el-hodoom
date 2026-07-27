@@ -223,6 +223,8 @@
   @media print {
     body *{ visibility:hidden; }
     #receiptContent, #receiptContent *{ visibility:visible; }
+    .modal-backdrop{ position:static !important; background:none !important; display:block !important; height:auto !important; padding:0 !important; }
+    .modal-box{ position:static !important; max-height:none !important; overflow:visible !important; box-shadow:none !important; width:auto !important; max-width:none !important; }
     #receiptContent{ position:absolute; top:0; right:0; left:0; width:100%; }
   }
   .modal-body{ padding:24px 26px 28px; }
