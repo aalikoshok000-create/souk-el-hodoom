@@ -372,6 +372,10 @@
           <select id="custArea" required onchange="updateOrderSummary();"></select>
         </div>
       </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>تفاصيل العنوان (الشارع، رقم العمارة، الدور، أقرب علامة مميزة)</label>
+        <input type="text" id="custAddressDetails" required placeholder="مثال: ٥ شارع النصر، عمارة ٣، الدور الثاني، جنب صيدلية النور">
+      </div>
       <div class="field" id="orderSummaryBox" style="background:var(--bg); border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:0.85rem;">
         <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
           <span>المنتجات</span><span id="summarySubtotal">٠ ج.م</span>
@@ -459,6 +463,10 @@
         <label>المقاس</label>
         <select id="returnSize"></select>
       </div>
+      <div class="field" style="margin-bottom:14px; display:none;" id="returnColorWrap">
+        <label>اللون</label>
+        <select id="returnColor"></select>
+      </div>
       <div class="field" style="margin-bottom:14px;">
         <label>الكمية</label>
         <input type="number" id="returnQty" min="1" value="1" required>
@@ -541,6 +549,10 @@
         <div class="field" style="margin-bottom:14px; display:none;" id="stockInSizeWrap">
           <label>المقاس</label>
           <select id="stockInSize"></select>
+        </div>
+        <div class="field" style="margin-bottom:14px; display:none;" id="stockInColorWrap">
+          <label>اللون</label>
+          <select id="stockInColor"></select>
         </div>
         <div class="field" style="margin-bottom:14px;">
           <label>الكمية الواردة</label>
@@ -673,10 +685,10 @@ async function loadGovernorates(){
 
 // قائمة احتياطية بتتستخدم بس لو الاتصال بالشيت فشل أو لسه مش متظبط
 const fallbackProducts = [
-  {id:1, name:'تيشيرت قطن سادة', brand:'Nile Basics', cat:'قمصان', category:'قمصان', was:220, price:150, desc:'قطن مريح للاستخدام اليومي.', image:'', stock:10},
-  {id:2, name:'قميص كارو اقتصادي', brand:'Delta Wear', cat:'قمصان', category:'قمصان', was:350, price:245, desc:'قماش خفيف مناسب للجو المعتدل.', image:'', stock:10},
-  {id:3, name:'تيشيرت طباعة', brand:'OSKA', cat:'قمصان', category:'قمصان', was:190, price:135, desc:'تصاميم بسيطة، خامة قطن ممزوج.', image:'', stock:10},
-  {id:4, name:'بنطلون قماش كلاسيك', brand:'Cairo Denim Co.', cat:'بناطيل', category:'بناطيل', was:420, price:295, desc:'قصة مريحة تناسب الشغل واليومي.', image:'', stock:10},
+  {id:1, name:'تيشيرت قطن سادة', brand:'Nile Basics', cat:'قمصان', category:'قمصان', was:220, price:150, desc:'قطن مريح للاستخدام اليومي.', image:'', images:[], sizes:[], colors:[], stockGrid:{'|':10}},
+  {id:2, name:'قميص كارو اقتصادي', brand:'Delta Wear', cat:'قمصان', category:'قمصان', was:350, price:245, desc:'قماش خفيف مناسب للجو المعتدل.', image:'', images:[], sizes:[], colors:[], stockGrid:{'|':10}},
+  {id:3, name:'تيشيرت طباعة', brand:'OSKA', cat:'قمصان', category:'قمصان', was:190, price:135, desc:'تصاميم بسيطة، خامة قطن ممزوج.', image:'', images:[], sizes:[], colors:[], stockGrid:{'|':10}},
+  {id:4, name:'بنطلون قماش كلاسيك', brand:'Cairo Denim Co.', cat:'بناطيل', category:'بناطيل', was:420, price:295, desc:'قصة مريحة تناسب الشغل واليومي.', image:'', images:[], sizes:[], colors:[], stockGrid:{'|':10}},
 ];
 
 let products = [...fallbackProducts];
@@ -691,7 +703,8 @@ async function loadProducts(){
         id: p.id, name: p.name, brand: p.brand,
         cat: p.category, category: p.category,
         was: p.was, price: p.price, desc: p.desc,
-        image: p.image || '', stock: p.stock, sizes: p.sizes || null
+        image: p.image || '', images: p.images && p.images.length ? p.images : (p.image ? [p.image] : []),
+        sizes: p.sizes || [], colors: p.colors || [], stockGrid: p.stockGrid || {}
       }));
     }
   }catch(err){
@@ -800,16 +813,25 @@ function unlockAdminContent(){
 function onStockInProductChange(){
   const id = document.getElementById('stockInProduct').value;
   const p = products.find(x => x.id == id);
-  const wrap = document.getElementById('stockInSizeWrap');
+  const sizeWrap = document.getElementById('stockInSizeWrap');
   const sizeSelect = document.getElementById('stockInSize');
-  if(p && p.sizes){
-    wrap.style.display = 'block';
-    sizeSelect.innerHTML = Object.keys(p.sizes).map(sz =>
-      `<option value="${sz}">${sz} (المتاح حاليًا: ${p.sizes[sz]})</option>`
-    ).join('');
+  const colorWrap = document.getElementById('stockInColorWrap');
+  const colorSelect = document.getElementById('stockInColor');
+
+  if(p && p.sizes && p.sizes.length){
+    sizeWrap.style.display = 'block';
+    sizeSelect.innerHTML = p.sizes.map(sz => `<option value="${sz}">${sz}</option>`).join('');
   } else {
-    wrap.style.display = 'none';
+    sizeWrap.style.display = 'none';
     sizeSelect.innerHTML = '';
+  }
+
+  if(p && p.colors && p.colors.length){
+    colorWrap.style.display = 'block';
+    colorSelect.innerHTML = p.colors.map(cl => `<option value="${cl}">${cl}</option>`).join('');
+  } else {
+    colorWrap.style.display = 'none';
+    colorSelect.innerHTML = '';
   }
 }
 
@@ -823,6 +845,8 @@ async function submitStockIn(e){
   const productId = document.getElementById('stockInProduct').value;
   const sizeWrap = document.getElementById('stockInSizeWrap');
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('stockInSize').value : null;
+  const colorWrap = document.getElementById('stockInColorWrap');
+  const color = colorWrap.style.display !== 'none' ? document.getElementById('stockInColor').value : null;
   const qty = parseInt(document.getElementById('stockInQty').value);
   const unitCost = parseFloat(document.getElementById('stockInUnitCost').value) || 0;
   const note = document.getElementById('stockInNote').value.trim();
@@ -835,7 +859,7 @@ async function submitStockIn(e){
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret, type: 'add_stock_in', productId, size, qty, unitCost, note })
+      body: JSON.stringify({ secret, type: 'add_stock_in', productId, size, color, qty, unitCost, note })
     });
     const json = await res.json();
     if(json.success){
@@ -874,14 +898,25 @@ function toggleReturnRequest(open){
 function onReturnProductChange(){
   const id = document.getElementById('returnProduct').value;
   const p = products.find(x => x.id == id);
-  const wrap = document.getElementById('returnSizeWrap');
+  const sizeWrap = document.getElementById('returnSizeWrap');
   const sizeSelect = document.getElementById('returnSize');
-  if(p && p.sizes){
-    wrap.style.display = 'block';
-    sizeSelect.innerHTML = Object.keys(p.sizes).map(sz => `<option value="${sz}">${sz}</option>`).join('');
+  const colorWrap = document.getElementById('returnColorWrap');
+  const colorSelect = document.getElementById('returnColor');
+
+  if(p && p.sizes && p.sizes.length){
+    sizeWrap.style.display = 'block';
+    sizeSelect.innerHTML = p.sizes.map(sz => `<option value="${sz}">${sz}</option>`).join('');
   } else {
-    wrap.style.display = 'none';
+    sizeWrap.style.display = 'none';
     sizeSelect.innerHTML = '';
+  }
+
+  if(p && p.colors && p.colors.length){
+    colorWrap.style.display = 'block';
+    colorSelect.innerHTML = p.colors.map(cl => `<option value="${cl}">${cl}</option>`).join('');
+  } else {
+    colorWrap.style.display = 'none';
+    colorSelect.innerHTML = '';
   }
 }
 
@@ -895,6 +930,8 @@ async function submitReturnRequest(e){
   const productId = document.getElementById('returnProduct').value;
   const sizeWrap = document.getElementById('returnSizeWrap');
   const size = sizeWrap.style.display !== 'none' ? document.getElementById('returnSize').value : null;
+  const colorWrap = document.getElementById('returnColorWrap');
+  const color = colorWrap.style.display !== 'none' ? document.getElementById('returnColor').value : null;
   const qty = parseInt(document.getElementById('returnQty').value);
   const reason = document.getElementById('returnReason').value.trim();
   const honeypot = document.getElementById('returnWebsite').value;
@@ -909,7 +946,7 @@ async function submitReturnRequest(e){
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret: WEBAPP_SECRET, type: 'request_return', orderId, productId, size, qty, reason, honeypot, recaptchaToken })
+      body: JSON.stringify({ secret: WEBAPP_SECRET, type: 'request_return', orderId, productId, size, color, qty, reason, honeypot, recaptchaToken })
     });
     const json = await res.json();
     if(json.success){
@@ -918,7 +955,7 @@ async function submitReturnRequest(e){
       showReturnReceipt({
         returnId: json.returnId,
         date: new Date().toLocaleString('ar-EG'),
-        orderId, productName: p ? p.name : '', size, qty, reason,
+        orderId, productName: p ? p.name : '', size, color, qty, reason,
         status: 'قيد المراجعة'
       });
     } else {
@@ -951,6 +988,7 @@ function viewReturnReceiptAdmin(idx){
     orderId: r['OrderID'],
     productName: r['المنتج'],
     size: r['المقاس'],
+    color: r['اللون'],
     qty: r['الكمية'],
     reason: r['السبب'],
     status: r['الحالة']
@@ -989,7 +1027,7 @@ async function loadReturnsForAdmin(){
         </div>
         <div class="order-row-items">
           أوردر: ${r['OrderID'] || ''}<br>
-          ${r['المنتج'] || ''}${r['المقاس'] ? ' - مقاس ' + r['المقاس'] : ''} × ${r['الكمية'] || ''}<br>
+          ${r['المنتج'] || ''}${r['المقاس'] ? ' - مقاس ' + r['المقاس'] : ''}${r['اللون'] ? ' - لون ' + r['اللون'] : ''} × ${r['الكمية'] || ''}<br>
           السبب: ${r['السبب'] || '—'}
         </div>
         <div class="order-row-foot">
@@ -1225,8 +1263,32 @@ function renderFilters(){
 
 let cardQty = {}; // الكمية المختارة حاليًا في كل كارت قبل الإضافة للسلة
 let selectedSize = {}; // المقاس المختار حاليًا لكل منتج ليه مقاسات
+let selectedColor = {}; // اللون المختار حاليًا لكل منتج ليه ألوان
 
-function cartKey(id, size){ return size ? `${id}::${size}` : String(id); }
+function cartKey(id, size, color){ return `${id}::${size||''}::${color||''}`; }
+
+function getProductStock(p, size, color){
+  if(!p.stockGrid) return 0;
+  const key = (size||'') + '|' + (color||'');
+  return p.stockGrid[key] !== undefined ? p.stockGrid[key] : 0;
+}
+
+function ensureVariantSelection(p){
+  const hasSizes = p.sizes && p.sizes.length > 0;
+  const hasColors = p.colors && p.colors.length > 0;
+
+  if(hasSizes && (!selectedSize[p.id] || !p.sizes.includes(selectedSize[p.id]))){
+    const withStock = p.sizes.find(sz => hasColors
+      ? p.colors.some(cl => getProductStock(p, sz, cl) > 0)
+      : getProductStock(p, sz, '') > 0);
+    selectedSize[p.id] = withStock || p.sizes[0];
+  }
+  if(hasColors && (!selectedColor[p.id] || !p.colors.includes(selectedColor[p.id]))){
+    const sz = hasSizes ? selectedSize[p.id] : '';
+    const withStock = p.colors.find(cl => getProductStock(p, sz, cl) > 0);
+    selectedColor[p.id] = withStock || p.colors[0];
+  }
+}
 
 function renderProducts(){
   const grid = document.getElementById('productGrid');
@@ -1241,29 +1303,19 @@ function renderProducts(){
         ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='👕';">`
         : '👕';
 
-      const hasSizes = !!p.sizes;
-      let stock, remaining, outOfStock;
+      const hasSizes = p.sizes && p.sizes.length > 0;
+      const hasColors = p.colors && p.colors.length > 0;
+      ensureVariantSelection(p);
 
-      if(hasSizes){
-        const sizeKeys = Object.keys(p.sizes);
-        if(!selectedSize[p.id] || !(selectedSize[p.id] in p.sizes)){
-          const firstAvailable = sizeKeys.find(sz => p.sizes[sz] > 0);
-          selectedSize[p.id] = firstAvailable || sizeKeys[0];
-        }
-        const sz = selectedSize[p.id];
-        stock = p.sizes[sz];
-        const inCart = cart[cartKey(p.id, sz)]?.qty || 0;
-        remaining = Math.max(stock - inCart, 0);
-        outOfStock = stock <= 0;
-      } else {
-        stock = Number(p.stock);
-        const inCart = cart[cartKey(p.id, null)]?.qty || 0;
-        remaining = Math.max(stock - inCart, 0);
-        outOfStock = !isNaN(stock) && stock <= 0;
-      }
-
+      const sz = hasSizes ? selectedSize[p.id] : '';
+      const cl = hasColors ? selectedColor[p.id] : '';
+      const stock = getProductStock(p, sz, cl);
+      const inCart = cart[cartKey(p.id, sz, cl)]?.qty || 0;
+      const remaining = Math.max(stock - inCart, 0);
+      const outOfStock = stock <= 0;
       const reachedLimit = remaining <= 0;
-      const qtyKey = hasSizes ? `${p.id}_${selectedSize[p.id]}` : String(p.id);
+
+      const qtyKey = `${p.id}_${sz}_${cl}`;
       if(!cardQty[qtyKey] || cardQty[qtyKey] < 1) cardQty[qtyKey] = 1;
       if(cardQty[qtyKey] > remaining) cardQty[qtyKey] = Math.max(remaining, 1);
       const qty = cardQty[qtyKey];
@@ -1280,10 +1332,23 @@ function renderProducts(){
 
       const sizeSelector = hasSizes ? `
         <div class="size-selector" data-id="${p.id}">
-          ${Object.keys(p.sizes).map(sz => `
-            <button type="button" class="size-btn ${selectedSize[p.id]===sz ? 'active':''}" 
-              data-id="${p.id}" data-size="${sz}" ${p.sizes[sz] <= 0 ? 'disabled' : ''}>${sz}</button>
-          `).join('')}
+          ${p.sizes.map(s => {
+            const availableForThisSize = hasColors
+              ? p.colors.some(c2 => getProductStock(p, s, c2) > 0)
+              : getProductStock(p, s, '') > 0;
+            return `<button type="button" class="size-btn ${selectedSize[p.id]===s ? 'active':''}"
+              data-id="${p.id}" data-size="${s}" ${!availableForThisSize ? 'disabled' : ''}>${s}</button>`;
+          }).join('')}
+        </div>
+      ` : '';
+
+      const colorSelector = hasColors ? `
+        <div class="size-selector" data-id="${p.id}">
+          ${p.colors.map(c => {
+            const availableForThisColor = getProductStock(p, sz, c) > 0;
+            return `<button type="button" class="size-btn color-btn ${selectedColor[p.id]===c ? 'active':''}"
+              data-id="${p.id}" data-color="${c}" ${!availableForThisColor ? 'disabled' : ''}>${c}</button>`;
+          }).join('')}
         </div>
       ` : '';
 
@@ -1296,6 +1361,7 @@ function renderProducts(){
           <div class="card-name" onclick="openProductModal(${p.id})" style="cursor:pointer;">${p.name}</div>
           ${stockLabel}
           ${sizeSelector}
+          ${colorSelector}
           <div class="card-prices">
             <span class="card-was">${fmt(p.was)}</span>
             <span class="card-now">${fmt(p.price)}</span>
@@ -1315,9 +1381,15 @@ function renderProducts(){
       grid.appendChild(card);
     });
 
-  grid.querySelectorAll('.size-btn:not([disabled])').forEach(btn => {
+  grid.querySelectorAll('.size-btn[data-size]:not([disabled])').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedSize[btn.dataset.id] = btn.dataset.size;
+      renderProducts();
+    });
+  });
+  grid.querySelectorAll('.size-btn[data-color]:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedColor[btn.dataset.id] = btn.dataset.color;
       renderProducts();
     });
   });
@@ -1327,11 +1399,12 @@ function renderProducts(){
       const id = parseInt(btn.dataset.id);
       const delta = parseInt(btn.dataset.delta);
       const p = products.find(x => x.id == id);
-      const sz = p.sizes ? selectedSize[id] : null;
-      const stock = p.sizes ? p.sizes[sz] : Number(p.stock);
-      const inCart = cart[cartKey(id, sz)]?.qty || 0;
-      const remaining = !isNaN(stock) ? Math.max(stock - inCart, 1) : 99;
-      const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
+      const sz = (p.sizes && p.sizes.length) ? selectedSize[id] : '';
+      const cl = (p.colors && p.colors.length) ? selectedColor[id] : '';
+      const stock = getProductStock(p, sz, cl);
+      const inCart = cart[cartKey(id, sz, cl)]?.qty || 0;
+      const remaining = Math.max(stock - inCart, 1);
+      const qtyKey = `${id}_${sz}_${cl}`;
       let next = (cardQty[qtyKey] || 1) + delta;
       if(next < 1) next = 1;
       if(next > remaining) next = remaining;
@@ -1344,9 +1417,10 @@ function renderProducts(){
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.id);
       const p = products.find(x => x.id == id);
-      const sz = p.sizes ? selectedSize[id] : null;
-      const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
-      addToCart(id, sz, cardQty[qtyKey] || 1);
+      const sz = (p.sizes && p.sizes.length) ? selectedSize[id] : '';
+      const cl = (p.colors && p.colors.length) ? selectedColor[id] : '';
+      const qtyKey = `${id}_${sz}_${cl}`;
+      addToCart(id, sz, cl, cardQty[qtyKey] || 1);
       cardQty[qtyKey] = 1;
       btn.textContent = 'أُضيفت ✓';
       btn.classList.add('added');
@@ -1372,33 +1446,33 @@ function renderProductModal(id){
   const p = products.find(x => x.id == id);
   if(!p) return;
   const pct = discountPct(p.was, p.price);
-  const mediaContent = p.image
-    ? `<img src="${p.image}" alt="${p.name}" onerror="this.parentElement.innerHTML='👕';">`
+
+  const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+  const mediaContent = images.length
+    ? `<img src="${images[0]}" alt="${p.name}" id="modalMainImage" onerror="this.parentElement.innerHTML='👕';">`
     : '👕';
+  const galleryHTML = images.length > 1 ? `
+    <div style="display:flex; gap:8px; margin-top:8px; overflow-x:auto;">
+      ${images.map((img, i) => `
+        <img src="${img}" onclick="document.getElementById('modalMainImage').src='${img}'"
+          style="width:56px; height:56px; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid ${i===0 ? 'var(--red)':'var(--line)'};">
+      `).join('')}
+    </div>
+  ` : '';
 
-  const hasSizes = !!p.sizes;
-  let stock, remaining, outOfStock;
+  const hasSizes = p.sizes && p.sizes.length > 0;
+  const hasColors = p.colors && p.colors.length > 0;
+  ensureVariantSelection(p);
 
-  if(hasSizes){
-    const sizeKeys = Object.keys(p.sizes);
-    if(!selectedSize[p.id] || !(selectedSize[p.id] in p.sizes)){
-      const firstAvailable = sizeKeys.find(sz => p.sizes[sz] > 0);
-      selectedSize[p.id] = firstAvailable || sizeKeys[0];
-    }
-    const sz = selectedSize[p.id];
-    stock = p.sizes[sz];
-    const inCart = cart[cartKey(p.id, sz)]?.qty || 0;
-    remaining = Math.max(stock - inCart, 0);
-    outOfStock = stock <= 0;
-  } else {
-    stock = Number(p.stock);
-    const inCart = cart[cartKey(p.id, null)]?.qty || 0;
-    remaining = Math.max(stock - inCart, 0);
-    outOfStock = !isNaN(stock) && stock <= 0;
-  }
-
+  const sz = hasSizes ? selectedSize[p.id] : '';
+  const cl = hasColors ? selectedColor[p.id] : '';
+  const stock = getProductStock(p, sz, cl);
+  const inCart = cart[cartKey(p.id, sz, cl)]?.qty || 0;
+  const remaining = Math.max(stock - inCart, 0);
+  const outOfStock = stock <= 0;
   const reachedLimit = remaining <= 0;
-  const qtyKey = hasSizes ? `${p.id}_${selectedSize[p.id]}` : String(p.id);
+
+  const qtyKey = `${p.id}_${sz}_${cl}`;
   if(!cardQty[qtyKey] || cardQty[qtyKey] < 1) cardQty[qtyKey] = 1;
   if(cardQty[qtyKey] > remaining) cardQty[qtyKey] = Math.max(remaining, 1);
   const qty = cardQty[qtyKey];
@@ -1415,23 +1489,38 @@ function renderProductModal(id){
 
   const sizeSelector = hasSizes ? `
     <div class="size-selector">
-      ${Object.keys(p.sizes).map(sz => `
-        <button type="button" class="size-btn ${selectedSize[p.id]===sz ? 'active':''}"
-          onclick="selectModalSize(${p.id}, '${sz}')" ${p.sizes[sz] <= 0 ? 'disabled' : ''}>${sz}</button>
-      `).join('')}
+      ${p.sizes.map(s => {
+        const availableForThisSize = hasColors
+          ? p.colors.some(c2 => getProductStock(p, s, c2) > 0)
+          : getProductStock(p, s, '') > 0;
+        return `<button type="button" class="size-btn ${selectedSize[p.id]===s ? 'active':''}"
+          onclick="selectModalSize(${p.id}, '${s}')" ${!availableForThisSize ? 'disabled' : ''}>${s}</button>`;
+      }).join('')}
+    </div>
+  ` : '';
+
+  const colorSelector = hasColors ? `
+    <div class="size-selector">
+      ${p.colors.map(c => {
+        const availableForThisColor = getProductStock(p, sz, c) > 0;
+        return `<button type="button" class="size-btn color-btn ${selectedColor[p.id]===c ? 'active':''}"
+          onclick="selectModalColor(${p.id}, '${c}')" ${!availableForThisColor ? 'disabled' : ''}>${c}</button>`;
+      }).join('')}
     </div>
   ` : '';
 
   document.getElementById('productModalContent').innerHTML = `
     <div class="modal-media">${mediaContent}</div>
     <div class="modal-body">
-      <div class="discount-sticker" style="position:static; display:inline-block; margin-bottom:10px;">خصم ${pct}٪</div>
+      ${galleryHTML}
+      <div class="discount-sticker" style="position:static; display:inline-block; margin:10px 0;">خصم ${pct}٪</div>
       <div class="card-brand">${p.brand}</div>
       <div class="card-cat">${p.cat}</div>
       <h2 style="font-family:'Almarai'; font-size:1.3rem; margin:6px 0;">${p.name}</h2>
       <div class="modal-desc">${p.desc || ''}</div>
       ${stockLabel}
-      ${sizeSelector}
+      ${hasSizes ? `<div style="font-size:0.78rem; color:var(--ink-soft); margin:10px 0 4px;">المقاس</div>${sizeSelector}` : ''}
+      ${hasColors ? `<div style="font-size:0.78rem; color:var(--ink-soft); margin:10px 0 4px;">اللون</div>${colorSelector}` : ''}
       <div class="card-prices" style="margin:14px 0;">
         <span class="card-was">${fmt(p.was)}</span>
         <span class="card-now" style="font-size:1.4rem;">${fmt(p.price)}</span>
@@ -1454,14 +1543,21 @@ function selectModalSize(id, sz){
   renderProducts();
 }
 
+function selectModalColor(id, cl){
+  selectedColor[id] = cl;
+  renderProductModal(id);
+  renderProducts();
+}
+
 function changeModalQty(delta){
   const id = currentModalProductId;
   const p = products.find(x => x.id == id);
-  const sz = p.sizes ? selectedSize[id] : null;
-  const stock = p.sizes ? p.sizes[sz] : Number(p.stock);
-  const inCart = cart[cartKey(id, sz)]?.qty || 0;
-  const remaining = !isNaN(stock) ? Math.max(stock - inCart, 1) : 99;
-  const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
+  const sz = (p.sizes && p.sizes.length) ? selectedSize[id] : '';
+  const cl = (p.colors && p.colors.length) ? selectedColor[id] : '';
+  const stock = getProductStock(p, sz, cl);
+  const inCart = cart[cartKey(id, sz, cl)]?.qty || 0;
+  const remaining = Math.max(stock - inCart, 1);
+  const qtyKey = `${id}_${sz}_${cl}`;
   let next = (cardQty[qtyKey] || 1) + delta;
   if(next < 1) next = 1;
   if(next > remaining) next = remaining;
@@ -1472,26 +1568,27 @@ function changeModalQty(delta){
 function addFromModal(){
   const id = currentModalProductId;
   const p = products.find(x => x.id == id);
-  const sz = p.sizes ? selectedSize[id] : null;
-  const qtyKey = p.sizes ? `${id}_${sz}` : String(id);
-  addToCart(id, sz, cardQty[qtyKey] || 1);
+  const sz = (p.sizes && p.sizes.length) ? selectedSize[id] : '';
+  const cl = (p.colors && p.colors.length) ? selectedColor[id] : '';
+  const qtyKey = `${id}_${sz}_${cl}`;
+  addToCart(id, sz, cl, cardQty[qtyKey] || 1);
   cardQty[qtyKey] = 1;
   showToast('اتضافت للسلة');
   renderProductModal(id);
   renderProducts();
 }
 
-function addToCart(id, size, qty){
+function addToCart(id, size, color, qty){
   qty = qty || 1;
   const p = products.find(x => x.id == id);
-  const stock = size && p.sizes ? p.sizes[size] : Number(p.stock);
-  const key = cartKey(id, size);
+  const stock = getProductStock(p, size, color);
+  const key = cartKey(id, size, color);
   const currentQty = cart[key]?.qty || 0;
-  if(!isNaN(stock) && currentQty + qty > stock){
+  if(currentQty + qty > stock){
     showToast('الكمية المطلوبة أكبر من المتاح');
     return;
   }
-  cart[key] = { id, size, qty: currentQty + qty };
+  cart[key] = { id, size, color, qty: currentQty + qty };
   updateCartUI();
 }
 
@@ -1500,8 +1597,8 @@ function changeQty(key, delta){
   const entry = cart[key];
   if(delta > 0){
     const p = products.find(x => x.id == entry.id);
-    const stock = entry.size && p.sizes ? p.sizes[entry.size] : Number(p.stock);
-    if(!isNaN(stock) && entry.qty >= stock){
+    const stock = getProductStock(p, entry.size, entry.color);
+    if(entry.qty >= stock){
       showToast('وصلت للحد الأقصى المتاح من القطعة دي');
       return;
     }
@@ -1706,12 +1803,18 @@ function showOrderReceipt(o){
   lastOrderReceipt = o;
 
   const itemsHTML = o.items && o.items.length
-    ? o.items.map(it => `
+    ? o.items.map(it => {
+        const variantParts = [];
+        if(it.size) variantParts.push('مقاس ' + it.size);
+        if(it.color) variantParts.push('لون ' + it.color);
+        const variantText = variantParts.length ? ' (' + variantParts.join('، ') + ')' : '';
+        return `
         <div class="receipt-item-row">
-          <span>${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}</span>
+          <span>${it.brand} / ${it.name}${variantText} × ${it.qty}</span>
           <span>${fmt((it.price || 0) * it.qty)}</span>
         </div>
-      `).join('')
+      `;
+      }).join('')
     : `<div class="receipt-item-row"><span>${o.itemsTextFallback || '—'}</span></div>`;
 
   document.getElementById('receiptContent').innerHTML = `
@@ -1723,6 +1826,7 @@ function showOrderReceipt(o){
     <div class="receipt-row"><span class="label">الاسم</span><span>${o.name}</span></div>
     <div class="receipt-row"><span class="label">الموبايل</span><span>${o.phone}</span></div>
     <div class="receipt-row"><span class="label">العنوان</span><span>${o.gov} - ${o.area}</span></div>
+    ${o.addressDetails ? `<div class="receipt-row"><span class="label">تفاصيل العنوان</span><span>${o.addressDetails}</span></div>` : ''}
     <div class="receipt-row"><span class="label">طريقة الدفع</span><span>الدفع عند الاستلام</span></div>
     ${o.status ? `<div class="receipt-row"><span class="label">الحالة</span><span>${o.status}</span></div>` : ''}
     <div class="receipt-items">${itemsHTML}</div>
@@ -1745,7 +1849,7 @@ function showReturnReceipt(r){
       <div class="receipt-date">${r.date}</div>
     </div>
     <div class="receipt-row"><span class="label">رقم الأوردر المرتبط</span><span>${r.orderId}</span></div>
-    <div class="receipt-row"><span class="label">المنتج</span><span>${r.productName}${r.size ? ' (مقاس ' + r.size + ')' : ''}</span></div>
+    <div class="receipt-row"><span class="label">المنتج</span><span>${r.productName}${r.size ? ' (مقاس ' + r.size + ')' : ''}${r.color ? ' (لون ' + r.color + ')' : ''}</span></div>
     <div class="receipt-row"><span class="label">الكمية</span><span>${r.qty}</span></div>
     <div class="receipt-row"><span class="label">سبب الإرجاع</span><span>${r.reason || '—'}</span></div>
     <div class="receipt-row"><span class="label">الحالة</span><span>${r.status || 'قيد المراجعة'}</span></div>
@@ -1778,7 +1882,11 @@ function sendReceiptToWhatsapp(){
     if(!r) return;
     let msg = `طلب مرتجع رقم: ${r.returnId}%0A`;
     msg += `أوردر: ${r.orderId}%0A`;
-    msg += `المنتج: ${r.productName}${r.size ? ' (مقاس ' + r.size + ')' : ''} × ${r.qty}%0A`;
+    const rVariantParts = [];
+    if(r.size) rVariantParts.push('مقاس ' + r.size);
+    if(r.color) rVariantParts.push('لون ' + r.color);
+    const rVariantText = rVariantParts.length ? ' (' + rVariantParts.join('، ') + ')' : '';
+    msg += `المنتج: ${r.productName}${rVariantText} × ${r.qty}%0A`;
     msg += `السبب: ${r.reason}`;
     window.open(`https://wa.me/${siteSettings.whatsapp_number}?text=${msg}`, '_blank');
     return;
@@ -1789,9 +1897,16 @@ function sendReceiptToWhatsapp(){
   let msg = `أهلاً، اسمي ${o.name}%0A`;
   if(o.orderId) msg += `رقم الأوردر: ${o.orderId}%0A`;
   msg += `المحافظة: ${o.gov} - ${o.area}%0A`;
+  if(o.addressDetails) msg += `تفاصيل العنوان: ${o.addressDetails}%0A`;
   msg += `طريقة الدفع: الدفع عند الاستلام%0A`;
   msg += 'الطلب:%0A';
-  (o.items || []).forEach(it => { msg += `- ${it.brand} / ${it.name}${it.size ? ' (مقاس ' + it.size + ')' : ''} × ${it.qty}%0A`; });
+  (o.items || []).forEach(it => {
+    const variantParts = [];
+    if(it.size) variantParts.push('مقاس ' + it.size);
+    if(it.color) variantParts.push('لون ' + it.color);
+    const variantText = variantParts.length ? ' (' + variantParts.join('، ') + ')' : '';
+    msg += `- ${it.brand} / ${it.name}${variantText} × ${it.qty}%0A`;
+  });
   msg += `المنتجات: ${o.subtotal} ج.م%0A`;
   msg += `الشحن: ${o.shippingCost > 0 ? o.shippingCost + ' ج.م' : 'مجاني'}%0A`;
   if(o.otherFees > 0){ msg += `مصاريف أخرى: ${o.otherFees} ج.م%0A`; }
@@ -1806,11 +1921,12 @@ async function submitOrder(e){
   const phone = document.getElementById('custPhone').value.trim();
   const gov = document.getElementById('custGov').value;
   const area = document.getElementById('custArea').value.trim();
+  const addressDetails = document.getElementById('custAddressDetails').value.trim();
   const pay = document.querySelector('input[name="pay"]:checked').value;
 
   const items = Object.values(cart).map(entry => {
     const p = products.find(x => x.id == entry.id);
-    return { id: p.id, name: p.name, brand: p.brand, size: entry.size || null, qty: entry.qty, price: p.price };
+    return { id: p.id, name: p.name, brand: p.brand, size: entry.size || null, color: entry.color || null, qty: entry.qty, price: p.price };
   });
   const subtotal = cartTotal();
   const { shipping: shippingCost, otherFees } = getShippingCost(gov, area, subtotal);
@@ -1822,7 +1938,7 @@ async function submitOrder(e){
   submitBtn.textContent = 'جاري التأكد من توفر المنتجات...';
 
   const recaptchaToken = await getRecaptchaToken('submit_order');
-  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, pay, items, subtotal, shipping: shippingCost, otherFees, total, honeypot, recaptchaToken };
+  const orderPayload = { secret: WEBAPP_SECRET, name, phone, governorate: gov, area, addressDetails, pay, items, subtotal, shipping: shippingCost, otherFees, total, honeypot, recaptchaToken };
 
   if(BACKEND_ENABLED){
     try{
@@ -1887,7 +2003,7 @@ async function submitOrder(e){
   submitBtn.disabled = false;
   submitBtn.textContent = 'تأكيد الطلب';
 
-  lastOrderReceipt = { orderId: returnedOrderId, name, phone, gov, area, pay, items, subtotal, shippingCost, otherFees, total, date: orderDate };
+  lastOrderReceipt = { orderId: returnedOrderId, name, phone, gov, area, addressDetails, pay, items, subtotal, shippingCost, otherFees, total, date: orderDate };
   showOrderReceipt(lastOrderReceipt);
   return false;
 }
